@@ -140,7 +140,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
             if self.headers.get('Transfer-Encoding'):
                 raise ValueError('Неподдерживаемый формат запроса')
             length = int(self.headers.get('Content-Length', '-1'))
-            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path in ('/api/chat','/api/workspace/attachment') else 32768):
+            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path in ('/api/chat','/api/chat/stream','/api/workspace/attachment') else 32768):
                 raise ValueError('Недопустимый размер запроса')
             body = self.rfile.read(length)
             if len(body) != length:
@@ -197,6 +197,55 @@ def create_server(data: Path, identity: str, session: str, token: str,
                     if set(payload)!={'name','base64'}:
                         raise ValueError('Укажите вложение')
                     return self.reply(200,{'text':workspace.extract_attachment(payload['name'],payload['base64'])})
+                if self.path == '/api/chat/stream':
+                    if set(payload) not in ({'messages'}, {'messages','chat_id'}, {'messages','chat_id','model'}):
+                        raise ValueError('Некорректный запрос чата')
+                    if not cloudru.has_key(data):
+                        return self.reply(400, {'error':'Сначала сохраните ключ Cloud.ru'})
+                    history=cloud_chat.compact_messages(payload['messages'])
+                    chat_id=payload.get('chat_id')
+                    if chat_id is not None:
+                        stored=workspace.chat_messages(data,chat_id)
+                        if history[:-1]!=stored:
+                            raise ValueError('История диалога не совпадает с сохранённой')
+                    model=payload.get('model')
+                    if model is not None and (not isinstance(model,str) or not cloudru.MODEL_RE.fullmatch(model)):
+                        raise ValueError('Недопустимая модель')
+                    if not chat_lock.acquire(blocking=False):
+                        return self.reply(429, {'error':'Предыдущая генерация ещё выполняется'})
+                    try:
+                        chunks=cloud_chat.stream(data,history,model=model)
+                        self.send_response(200)
+                        self.send_header('Content-Type','application/x-ndjson; charset=utf-8')
+                        self.send_header('Cache-Control','no-store')
+                        self.send_header('X-Content-Type-Options','nosniff')
+                        self.end_headers()
+                        answer=[]
+                        try:
+                            for delta in chunks:
+                                answer.append(delta)
+                                event=json.dumps({'delta':delta},ensure_ascii=False).encode('utf-8')+b'\\n'
+                                self.wfile.write(event)
+                                self.wfile.flush()
+                            full=''.join(answer)
+                            if full and chat_id:
+                                workspace.append_exchange(data,chat_id,history[-1]['content'],full)
+                            self.wfile.write(json.dumps({'done':True,'model':model or cloudru.get_config(data)['model']}).encode()+b'\\n')
+                            self.wfile.flush()
+                        except (BrokenPipeError,ConnectionResetError):
+                            logger.info('Поток Cloud.ru остановлен клиентом')
+                        except Exception:
+                            logger.exception('Ошибка потоковой генерации')
+                            try:
+                                self.wfile.write(json.dumps({'error':'Ошибка Cloud.ru, ответ не сохранён'},ensure_ascii=False).encode('utf-8')+b'\\n')
+                                self.wfile.flush()
+                            except OSError:
+                                pass
+                        finally:
+                            chunks.close()
+                    finally:
+                        chat_lock.release()
+                    return
                 if self.path == '/api/chat':
                     if set(payload) not in ({'messages'},{'messages','chat_id'}):
                         raise ValueError('Ожидается история сообщений')
