@@ -69,6 +69,9 @@ function render(current, initial = false) {
   $('tray-note').textContent = current.tray === 'active' ? 'Значок рядом с часами' : current.tray === 'starting' ? 'Ожидание готовности' : 'Для выхода — Ctrl+C в консоли';
   $('data-path').textContent = current.data_directory; $('data-path').title = current.data_directory;
   $('folder-hint').textContent = current.capabilities.open_folder ? '' : 'Папку можно открыть автоматически при запуске Sakuya в Windows.';
+  $('server-address').textContent = current.url.replace('http://127.0.0.1:', 'Порт ');
+  $('server-pid').textContent = String(current.pid);
+  $('update-ready').textContent = current.update?.automatic_install ? 'Доступны' : 'Вручную';
   $('about-python').textContent = current.python_version;
   $('about-mode').textContent = modes[current.mode] || current.mode;
   $('about-pid').textContent = current.pid;
