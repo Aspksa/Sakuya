@@ -159,6 +159,19 @@ class WebTests(unittest.TestCase):
             arm.assert_called_once()
         self.assertFalse(self.stop.is_set())
 
+    def test_restart_requires_confirmation_and_armed_transaction(self):
+        self.assertEqual(self.post('/api/update/restart', {'confirm': False})[0], 400)
+        if os.name != 'nt':
+            self.assertEqual(self.post('/api/update/restart', {'confirm': True})[0], 501)
+        else:
+            self.assertEqual(self.post('/api/update/restart', {'confirm': True})[0], 409)
+        self.assertFalse(self.stop.is_set())
+
+    def test_restart_rejects_cross_origin(self):
+        self.assertEqual(self.post('/api/update/restart', {'confirm': True},
+                                   {'Origin': 'https://invalid.example'})[0], 403)
+        self.assertFalse(self.stop.is_set())
+
     def test_logs_are_bounded(self):
         (self.data/'logs/sakuya.log').write_text('\n'.join('line '+str(i) for i in range(100)),encoding='utf-8')
         result=self.get('/api/logs')

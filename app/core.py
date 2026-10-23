@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
 import os
+import subprocess
 from pathlib import Path
 import secrets
 import sys
@@ -144,6 +145,26 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/update/restart':
+                    if payload != {'confirm': True}:
+                        raise ValueError('Требуется подтверждение перезапуска')
+                    if os.name != 'nt':
+                        return self.reply(501, {'error': 'Перезапуск через сайт доступен в Windows'})
+                    root = Path(os.environ.get('SAKUYA_ROOT', Path(__file__).resolve().parents[1])).resolve()
+                    journal = root / '.updates' / 'transaction.json'
+                    if not journal.is_file():
+                        return self.reply(409, {'error': 'Нет подготовленного обновления'})
+                    transaction = json.loads(journal.read_text(encoding='utf-8'))
+                    if transaction.get('phase') != 'armed':
+                        return self.reply(409, {'error': 'Обновление не ожидает запуска'})
+                    subprocess.Popen([sys.executable, '-X', 'utf8', str(root / 'scripts/restart-worker.py'),
+                                      '--owner-pid', str(os.getpid())],
+                                     cwd=str(root), env=dict(os.environ, SAKUYA_ROOT=str(root)),
+                                     creationflags=subprocess.CREATE_NO_WINDOW,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.reply(200, {'restarting': True})
+                    stop.set()
+                    return
                 if self.path == '/api/update/prepare':
                     if set(payload) != {'commit'} or not isinstance(payload['commit'], str) or not HEX40.fullmatch(payload['commit']):
                         raise ValueError('Укажите полный SHA коммита GitHub')

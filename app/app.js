@@ -225,6 +225,17 @@ async function openTarget(target,button) {
 $('open-documents').addEventListener('click',() => openTarget('documents',$('open-documents')));
 $('tools-log').addEventListener('click',() => $('show-log').click());
 $('check-updates').addEventListener('click',() => checkUpdates(true));
+$('restart-update').addEventListener('click', async () => {
+  if (!confirm('Закрыть Sakuya и автоматически запустить проверенную новую версию?')) return;
+  $('restart-update').disabled = true;
+  try {
+    await api('/api/update/restart', {confirm: true});
+    $('update-instructions').textContent = 'Sakuya перезапускается. Если браузер потеряет связь, откройте страницу через значок трея.';
+  } catch (error) {
+    $('restart-update').disabled = false;
+    toast(error.message, true);
+  }
+});
 $('prepare-update').addEventListener('click', async () => {
   if (!availableUpdateSha || preparingUpdate || !online) return;
   if (!confirm('Подготовить проверенный релиз? Для применения потребуется завершить Sakuya через трей и открыть Sakuya.bat ещё раз.')) return;
@@ -236,6 +247,7 @@ $('prepare-update').addEventListener('click', async () => {
     const result = await api('/api/update/prepare', {commit: availableUpdateSha});
     if (result.prepared) {
       $('update-instructions').textContent = 'Релиз подготовлен. Закройте Sakuya через значок трея и запустите Sakuya.bat повторно. При сбое пробного запуска повторное открытие BAT восстановит предыдущую версию.';
+      $('restart-update').disabled = false;
       toast('Проверенный релиз подготовлен к следующему запуску.');
     }
   } catch (error) { $('update-instructions').textContent = error.message; toast(error.message, true); }
