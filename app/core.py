@@ -17,6 +17,7 @@ import startup
 import updater
 import cloudru
 import cloud_chat
+import workspace
 from release_stage import HEX40, stage_release, verify_staged_release
 from recovery import arm_verified_update, recover
 
@@ -104,6 +105,17 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         return self.reply(400, {'error': 'Сначала сохраните API-ключ'})
                     models = cloudru.fetch_models(data)
                     return self.reply(200, {'models': models, 'connected': True})
+                if path == '/api/workspace/chats':
+                    return self.reply(200, {'chats': workspace.list_chats(data)})
+                if path == '/api/workspace/memories':
+                    return self.reply(200, {'memories': workspace.list_memory(data)})
+                if path == '/api/workspace/status':
+                    return self.reply(200, workspace.status(data))
+                if path == '/api/workspace/chat':
+                    query = urlsplit(self.path).query
+                    from urllib.parse import parse_qs
+                    chat_id = parse_qs(query).get('id', [''])[0]
+                    return self.reply(200, {'id': chat_id, 'messages': workspace.chat_messages(data,chat_id)})
                 if path == '/api/tools':
                     return self.reply(200, {'actions': ['open-data', 'open-documents', 'open-log'] if os.name == 'nt' else [],
                                             'arbitrary_commands': False})
@@ -128,7 +140,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
             if self.headers.get('Transfer-Encoding'):
                 raise ValueError('Неподдерживаемый формат запроса')
             length = int(self.headers.get('Content-Length', '-1'))
-            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path == '/api/chat' else 4096):
+            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path in ('/api/chat','/api/workspace/attachment') else 32768):
                 raise ValueError('Недопустимый размер запроса')
             body = self.rfile.read(length)
             if len(body) != length:
@@ -158,9 +170,43 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/workspace/create':
+                    if set(payload)-{'title'}:
+                        raise ValueError('Неизвестные поля')
+                    return self.reply(200, workspace.create_chat(data,payload.get('title','Новый диалог')))
+                if self.path == '/api/workspace/rename':
+                    if set(payload)!={'id','title'}:
+                        raise ValueError('Нужны id и title')
+                    workspace.rename_chat(data,payload['id'],payload['title'])
+                    return self.reply(200,{'saved':True})
+                if self.path == '/api/workspace/delete':
+                    if set(payload)!={'id'}:
+                        raise ValueError('Нужен id')
+                    workspace.delete_chat(data,payload['id'])
+                    return self.reply(200,{'deleted':True})
+                if self.path == '/api/workspace/memory/add':
+                    if set(payload)!={'content'}:
+                        raise ValueError('Нужен текст')
+                    return self.reply(200,workspace.save_memory(data,payload['content']))
+                if self.path == '/api/workspace/memory/delete':
+                    if set(payload)!={'id'}:
+                        raise ValueError('Нужен id')
+                    workspace.delete_memory(data,payload['id'])
+                    return self.reply(200,{'deleted':True})
+                if self.path == '/api/workspace/attachment':
+                    if set(payload)!={'name','base64'}:
+                        raise ValueError('Укажите вложение')
+                    return self.reply(200,{'text':workspace.extract_attachment(payload['name'],payload['base64'])})
                 if self.path == '/api/chat':
-                    if set(payload) != {'messages'}:
+                    if set(payload) not in ({'messages'},{'messages','chat_id'}):
                         raise ValueError('Ожидается история сообщений')
+                    chat_id = payload.get('chat_id')
+                    if chat_id is not None:
+                        stored = workspace.chat_messages(data,chat_id)
+                        proposed = cloud_chat.compact_messages(payload['messages'])
+                        if len(proposed) != len(stored)+1 or proposed[:-1] != stored:
+                            raise ValueError('История диалога не совпадает с сохранённой')
+
                     if not cloudru.has_key(data):
                         return self.reply(400, {'error': 'Сначала сохраните API-ключ Cloud.ru'})
                     if not chat_lock.acquire(blocking=False):
@@ -169,6 +215,8 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         result = cloud_chat.complete(data, payload['messages'])
                     finally:
                         chat_lock.release()
+                    if chat_id is not None:
+                        workspace.append_exchange(data,chat_id,payload['messages'][-1]['content'],result['answer'])
                     return self.reply(200, result)
                 if self.path == '/api/cloudru/key':
                     if set(payload) != {'key'} or not isinstance(payload['key'], str):
