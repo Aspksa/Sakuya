@@ -7,7 +7,7 @@ from __future__ import annotations
 import base64
 import os
 import platform
-from contextlib import contextmanager
+from contextlib import contextmanager, closing
 import io
 import json
 from pathlib import Path
@@ -197,7 +197,7 @@ def backup(data: Path) -> dict:
     name="workspace-"+time.strftime("%Y%m%d-%H%M%S")+"-"+uuid.uuid4().hex[:8]+".sqlite3"
     target=archive/name
     with database(data) as source:
-        with sqlite3.connect(str(target)) as destination:
+        with closing(sqlite3.connect(str(target))) as destination:
             source.backup(destination)
     return {"name":name,"size":target.stat().st_size}
 
