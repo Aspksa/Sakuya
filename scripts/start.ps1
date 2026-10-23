@@ -21,10 +21,51 @@ $logPath = Join-Path $logDir 'bootstrap.log'
 $messages = $null
 $mutex = $null
 $ownsMutex = $false
+$script:activeStage = $null
+$script:canRewrite = $false
+$script:advice = ''
+$env:SAKUYA_LAUNCH_STARTED_AT = ([double]([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000)).ToString('R', [Globalization.CultureInfo]::InvariantCulture)
 
-function Write-Log([string]$Text) {
-    Write-Host $Text
+function Write-Log([string]$Text, [switch]$Detail, [string]$Color = 'Gray', [switch]$FileOnly) {
+    if (-not $FileOnly -and (-not $Detail -or $Mode -eq 'diagnostic')) { Write-Host $Text -ForegroundColor $Color }
     try { [IO.File]::AppendAllText($logPath, ((Get-Date -Format o) + ' ' + $Text + "`r`n"), [Text.Encoding]::UTF8) } catch { }
+}
+
+function Start-Stage([string]$Name) {
+    $script:activeStage = [pscustomobject]@{Name=$Name; Watch=[Diagnostics.Stopwatch]::StartNew()}
+    $line = $messages.console.running -f $Name
+    if ($script:canRewrite) { Write-Host $line -ForegroundColor Cyan -NoNewline }
+    else { Write-Host $line -ForegroundColor Cyan }
+}
+
+function Finish-Stage([ValidateSet('success','warning','error')][string]$Status = 'success') {
+    if (-not $script:activeStage) { return }
+    $stage = $script:activeStage
+    $stage.Watch.Stop()
+    $symbol = [char]0x2713
+    $color = 'Green'
+    if ($Status -eq 'warning') { $symbol = [char]0x26A0; $color = 'Yellow' }
+    if ($Status -eq 'error') { $symbol = [char]0x2715; $color = 'Red' }
+    $elapsed = $stage.Watch.Elapsed.TotalSeconds.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)
+    $line = $messages.console.finished -f $symbol, $stage.Name, $elapsed
+    if ($script:canRewrite) {
+        try {
+            [Console]::Write("`r" + (' ' * ([Math]::Max(1, [Console]::WindowWidth - 1))) + "`r")
+        } catch { $script:canRewrite = $false; Write-Host '' }
+    }
+    Write-Host $line -ForegroundColor $color
+    Write-Log $line -Detail -FileOnly
+    $script:activeStage = $null
+}
+
+function Show-StartupError([Exception]$Failure) {
+    Finish-Stage -Status error
+    $advice = $script:advice
+    if ($Failure -is [UnauthorizedAccessException]) { $advice = $messages.console.help_permission }
+    Write-Log $messages.console.failure -Color Red
+    Write-Log ($messages.console.reason -f $Failure.Message) -Color Red
+    Write-Log ($messages.console.action -f $advice) -Color Yellow
+    Write-Log ($messages.console.log -f $logPath) -Color DarkYellow
 }
 
 function Quote-Argument([string]$Value) {
@@ -69,21 +110,21 @@ function Test-Python([string]$Executable, [string[]]$Prefix = @()) {
         $errorTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit(10000)) {
             $process.Kill()
-            Write-Log ($messages.python_timeout -f $Executable)
+            Write-Log ($messages.python_timeout -f $Executable) -Detail
             return $null
         }
         $outputText = $outputTask.Result
         $errorText = $errorTask.Result
         if ($process.ExitCode -ne 0) {
-            Write-Log ($messages.python_probe_failed -f $Executable, $errorText)
+            Write-Log ($messages.python_probe_failed -f $Executable, $errorText) -Detail
             return $null
         }
         $result = $outputText.Trim() | ConvertFrom-Json
         if (-not (Test-Path -LiteralPath $result.exe -PathType Leaf)) { return $null }
-        Write-Log ($messages.python_ok -f $result.version, $result.exe)
+        Write-Log ($messages.python_ok -f $result.version, $result.exe) -Detail
         return $result.exe
     } catch {
-        Write-Log ($messages.python_probe_failed -f $Executable, $_.Exception.Message)
+        Write-Log ($messages.python_probe_failed -f $Executable, $_.Exception.Message) -Detail
         return $null
     } finally { $process.Dispose() }
 }
@@ -140,10 +181,16 @@ function Install-LocalPython {
     $archive = Join-Path $stage 'python.zip'
     $unpacked = Join-Path $stage 'unpacked'
     try {
-        Write-Log $messages.download
+        Start-Stage $messages.console.stage_install
+        $script:advice = $messages.console.help_network
+        Write-Log $messages.download -Detail
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -UseBasicParsing -Uri $uri.AbsoluteUri -OutFile $archive -TimeoutSec 90 -MaximumRedirection 0
-        if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $package.sha256) { throw 'Python SHA-256 mismatch' }
+        if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $package.sha256) {
+            $script:advice = $messages.console.help_hash
+            throw $messages.console.hash_mismatch
+        }
+        $script:advice = $messages.console.help_python
         # Literal extraction supports [, ], ! and Cyrillic paths too.
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($archive, $unpacked)
@@ -166,10 +213,12 @@ function Install-LocalPython {
 }
 
 try {
-    [void][IO.Directory]::CreateDirectory($logDir)
     $messages = Get-Content -LiteralPath (Join-Path $root 'config\messages.ru.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    Write-Log $messages.banner
-    Write-Log $messages.preparing
+    $script:advice = $messages.console.help_prepare
+    try { $script:canRewrite = $Mode -ne 'diagnostic' -and -not [Console]::IsOutputRedirected -and [Console]::WindowWidth -gt 30 } catch { }
+    Write-Log $messages.banner -Color DarkYellow
+    Start-Stage $messages.console.stage_prepare
+    [void][IO.Directory]::CreateDirectory($logDir)
     # Serialize environment preparation only; the Python supervisor owns the lifetime lock.
     $sha = [Security.Cryptography.SHA256]::Create()
     try { $digest = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($root.ToLowerInvariant()))).Replace('-', '') }
@@ -183,9 +232,15 @@ try {
     if (-not (Test-Path -LiteralPath $runtimeTarget) -and (Test-Path -LiteralPath $runtimeBackup)) {
         [IO.Directory]::Move($runtimeBackup, $runtimeTarget)
     }
-    Write-Log $messages.python_check
+    Finish-Stage
+    $script:advice = $messages.console.help_python
+    Start-Stage $messages.console.stage_python
     $pythonExe = Find-Python
-    if (-not $pythonExe) { $pythonExe = Install-LocalPython }
+    if (-not $pythonExe) {
+        Finish-Stage -Status warning
+        $pythonExe = Install-LocalPython
+    }
+    Finish-Stage
     if ($Startup -ne 'none') {
         & $pythonExe -X utf8 (Join-Path $root 'bootstrap\startup.py') $Startup
         if ($LASTEXITCODE -ne 0) { throw 'Autostart configuration failed' }
@@ -199,13 +254,13 @@ try {
     $code = $LASTEXITCODE
     if ($code -ne 0) {
         Write-Log ($messages.error + '. ' + $messages.log + ': ' + $logPath)
-        if ($Autostart) { [void](Read-Host 'Press Enter to close') }
+        if ($Autostart) { [void](Read-Host $messages.console.press_enter) }
     }
     exit $code
 } catch {
-    if ($messages) { Write-Log ($messages.error + ': ' + $_.Exception.Message + "`r`n" + $messages.log + ': ' + $logPath) }
+    if ($messages) { Show-StartupError $_.Exception }
     else { Write-Host ('Sakuya startup failed: ' + $_.Exception.Message + '; Log: ' + $logPath) }
-    if ($Autostart) { [void](Read-Host 'Press Enter to close') }
+    if ($Autostart) { [void](Read-Host $messages.console.press_enter) }
     exit 1
 } finally {
     if ($ownsMutex) { $mutex.ReleaseMutex() }
