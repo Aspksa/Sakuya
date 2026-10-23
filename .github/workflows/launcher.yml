@@ -1,0 +1,28 @@
+name: Launcher checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  launcher:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.14']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Parse Windows PowerShell 5.1 scripts
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-ChildItem scripts\*.ps1 | ForEach-Object {
+            $tokens = $null; $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors) { throw ($errors | Out-String) }
+          }
+      - name: Process and recovery checks
+        run: python -X utf8 -m unittest discover -s tests -v
