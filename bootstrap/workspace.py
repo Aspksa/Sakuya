@@ -46,6 +46,10 @@ def database(data: Path):
         CREATE TABLE IF NOT EXISTS memories (
             id TEXT PRIMARY KEY, content TEXT NOT NULL, created REAL NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY, original_name TEXT NOT NULL,
+            bytes INTEGER NOT NULL, created REAL NOT NULL
+        );
         """)
         yield db
         db.commit()
@@ -276,6 +280,10 @@ def list_documents(data: Path) -> list[dict]:
             continue
         stat=entry.stat()
         result.append({"id":entry.name,"bytes":stat.st_size,"modified":stat.st_mtime})
+    with database(data) as db:
+        names={row[0]:row[1] for row in db.execute("SELECT id,original_name FROM documents")}
+    for item in result:
+        item["name"]=names.get(item["id"],item["id"])
     result.sort(key=lambda item:item["modified"],reverse=True)
     return result[:500]
 
@@ -302,6 +310,13 @@ def save_document(data: Path, filename: str, encoded: str) -> dict:
         output.write(content)
         output.flush()
         os.fsync(output.fileno())
+    try:
+        with database(data) as db:
+            db.execute("INSERT INTO documents VALUES (?,?,?,?)",
+                       (uid,filename,len(content),time.time()))
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
     return {"id":uid,"name":filename,"bytes":len(content),
             "sha256":hashlib.sha256(content).hexdigest()}
 
@@ -318,6 +333,8 @@ def document_path(data: Path, uid: str) -> Path:
 
 def delete_document(data: Path, uid: str) -> None:
     document_path(data,uid).unlink()
+    with database(data) as db:
+        db.execute("DELETE FROM documents WHERE id=?", (uid,))
 
 
 def document_preview(data: Path, uid: str) -> str:
