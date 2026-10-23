@@ -37,3 +37,42 @@ body.sidebar-collapsed{--sidebar-width:86px}.sidebar-collapsed .sidebar{padding-
 .chat-form{display:grid;gap:10px;margin-top:18px}.chat-form textarea{resize:vertical;width:100%;min-width:0;border:1px solid var(--color-border);border-radius:9px;padding:12px;background:var(--color-surface);color:var(--color-text);font:inherit}
 .chat-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.chat-actions .helper{margin-right:auto}
 @media(max-width:650px){.chat-message{max-width:100%}.chat-actions .button{flex:1}}
+
+/* Accessibility and responsive QA: readable controls, long model output, safe viewport sizing */
+html{scroll-padding-top:20px}
+html,body{min-width:0;max-width:100%}
+.workspace,main,.panel,.settings-layout,.settings-panel,.access-grid{min-width:0}
+button,input,select,textarea{max-width:100%}
+button{min-height:36px}
+.nav-item{min-height:44px}
+.nav-item svg{width:20px;height:20px}
+.nav-label,.brand-caption,.local-card small,.sidebar-footer,.eyebrow{font-size:11px}
+.panel>p,.helper,.metric-note,.settings-tip{font-size:12px;line-height:1.6}
+.form-actions .button{font-size:12px;min-height:42px}
+.chat-messages{max-height:min(65dvh,780px);overscroll-behavior:contain;scrollbar-gutter:stable}
+.chat-message{min-width:0;max-width:min(92%,800px)}
+.chat-message p{overflow-wrap:anywhere;word-break:normal;white-space:pre-wrap;line-height:1.65;user-select:text}
+.chat-form textarea{min-height:110px;max-height:45dvh;line-height:1.55;font-size:14px}
+.chat-actions{align-items:center}
+#chat-status{overflow-wrap:anywhere;flex:1 1 180px}
+#cloudru-status,#update-status,#update-instructions{overflow-wrap:anywhere}
+.settings-intro,.field-row{min-width:0}
+.cloudru-input-row input{font-size:14px}
+@media(max-width:650px){
+  .topbar{gap:7px}
+  .breadcrumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .connection{max-width:126px}
+  main{padding:20px 12px 0}
+  .panel{padding:16px}
+  .cloudru-controls{padding:16px}
+  .chat-messages{padding:10px;min-height:220px;max-height:62dvh}
+  .chat-message{max-width:98%;padding:12px}
+  .chat-actions .button{flex:1 1 auto}
+  .form-actions{gap:10px;padding:14px}
+  .form-actions .button{flex:1 1 145px}
+  .notice{min-width:0}
+  h1{font-size:clamp(25px,7vw,32px)}
+}
+@media(hover:none) and (pointer:coarse){
+  .nav-item,.button,.icon-button,input,select{min-height:44px}
+}
