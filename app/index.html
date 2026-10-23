@@ -39,7 +39,7 @@
   <nav aria-label="Основные разделы">
     <a class="nav-item active" href="#home" id="nav-home" aria-current="page" title="Главная"><svg><use href="#i-home"/></svg><span>Главная</span><span class="nav-active-mark"></span></a>
     <a class="nav-item" href="#settings" id="nav-settings" title="Настройки"><svg><use href="#i-settings"/></svg><span>Настройки</span></a>
-    <a class="nav-item" href="#chat" id="nav-chat" title="Чат"><svg><use href="#i-log"/></svg><span>Чат</span></a>
+    <a class="nav-item" href="#chat" id="nav-chat" title="Чат"><svg><use href="#i-log"/></svg><span>Чат</span></a><a class="nav-item" href="#memory" id="nav-memory" title="Память"><svg><use href="#i-chip"/></svg><span>Память</span></a><a class="nav-item" href="#monitor" id="nav-monitor" title="Мониторинг"><svg><use href="#i-tray"/></svg><span>Мониторинг</span></a>
     <a class="nav-item" href="#tools" id="nav-tools" title="Инструменты"><svg><use href="#i-tools"/></svg><span>Инструменты</span></a>
     <a class="nav-item" href="#updates" id="nav-updates" title="Обновления"><svg><use href="#i-refresh"/></svg><span>Обновления</span></a>
   </nav>
@@ -104,11 +104,37 @@
       </div><aside class="settings-aside"><section class="panel system-panel"><span class="system-emblem"><svg><use href="#i-fox"/></svg></span><h2>Sakuya</h2><p>Личное пространство</p><dl><div><dt>Версия</dt><dd data-bind="version">…</dd></div><div><dt>Python</dt><dd id="about-python">…</dd></div><div><dt>Режим</dt><dd id="about-mode">…</dd></div><div><dt>Процесс</dt><dd id="about-pid">…</dd></div><div><dt>Адрес</dt><dd id="about-address">…</dd></div></dl><span class="system-label"><svg><use href="#i-shield"/></svg>Работает локально</span></section><section class="settings-tip"><span>✦</span><p>Предпочитаемый порт может быть занят. Sakuya выберет свободный и откроет правильный адрес.</p></section></aside></div>
     </section>
     <section id="page-chat" aria-labelledby="chat-title" hidden>
-      <div class="page-heading"><div><p class="eyebrow">SAKUYA И CLOUD.RU</p><h1 id="chat-title">Чат</h1></div><span class="heading-note" id="chat-model">Модель из настроек</span></div>
-      <article class="panel"><div id="chat-messages" class="chat-messages" aria-live="polite"><p class="helper">Задайте вопрос Sakuya. Для ответов используется выбранная модель Cloud.ru.</p></div>
-        <form id="chat-form" class="chat-form"><label for="chat-input">Сообщение</label><textarea id="chat-input" rows="3" placeholder="Напишите сообщение…" required></textarea><div class="chat-actions"><span class="helper" id="chat-status">Для отправки нужен ключ и выбранная модель Cloud.ru.</span><button class="button primary" id="chat-send" type="submit">Отправить</button><button class="button secondary" id="chat-clear" type="button">Очистить</button></div></form>
+      <div class="page-heading"><div><p class="eyebrow">SAKUYA · CLOUD.RU</p><h1 id="chat-title">Чат и память</h1></div></div>
+      <div class="sakuya-chat-layout">
+        <aside class="panel sakuya-conversations" aria-label="Сохранённые диалоги">
+          <button class="button primary" id="chat-new" type="button">✦ Новый чат</button>
+          <label for="chat-search">Поиск по диалогам</label><input id="chat-search" type="search" placeholder="Название или текст…">
+          <div id="chat-list" class="chat-list" aria-live="polite"></div>
+          <div class="chat-management"><button class="button secondary" id="chat-rename" type="button">Переименовать</button><button class="button secondary" id="chat-delete" type="button">Удалить</button></div>
+        </aside>
+        <article class="panel sakuya-chat-panel">
+          <div class="chat-provider"><label for="chat-select-model">Модель Cloud.ru</label><select id="chat-select-model"><option value="">Модель из настроек</option></select><button class="button secondary" id="chat-reload-models" type="button">↻ Модели</button></div>
+          <div id="chat-messages" class="chat-messages" aria-live="polite"><p class="helper">Создайте новый диалог или выберите сохранённый.</p></div>
+          <form id="chat-form" class="chat-form">
+            <label for="chat-input">Сообщение</label>
+            <textarea id="chat-input" rows="3" placeholder="Напишите сообщение…"></textarea>
+            <div class="chat-attachment"><label for="chat-file">Прикрепить документ или изображение</label><input id="chat-file" type="file" accept=".txt,.md,.json,.csv,.log,.py,.js,.css,.html,.docx,.pdf,.png,.jpg,.jpeg,.webp"><span id="chat-file-info" class="helper">До 2 МиБ. Содержимое файла отправится в Cloud.ru; изображения поддерживаются только моделями с распознаванием картинок.</span></div>
+            <label class="chat-memory-opt"><input type="checkbox" id="chat-use-memory"> Использовать мои записи памяти в ответах Cloud.ru</label><div class="chat-actions"><span class="helper" id="chat-status" role="status">История хранится локально в Sakuya.</span><button class="button primary" id="chat-send" type="submit">Отправить</button><button class="button secondary" id="chat-stop" type="button" disabled>Остановить</button><button class="button secondary" id="chat-clear" type="button">Новый диалог</button></div>
+          </form>
+        </article>
+      </div>
+      <p class="helper">История хранится локально. Для генерации сообщений и содержимое выбранных вложений передаются в Cloud.ru. Прерванный ответ не сохраняется.</p>
+    </section>
+    <section id="page-memory" aria-labelledby="memory-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">ЛОКАЛЬНАЯ ПАМЯТЬ</p><h1 id="memory-title">Память Sakuya</h1></div></div>
+      <article class="panel"><p>Записи сохраняются только на вашем компьютере. Sakuya пока не добавляет их автоматически к запросу модели.</p>
+        <form id="memory-form" class="chat-form"><label for="memory-text">Новая запись</label><textarea id="memory-text" rows="3" placeholder="Что нужно сохранить?" required></textarea><button class="button primary" type="submit">Сохранить в память</button></form>
+        <div id="memory-list" class="memory-list"></div>
       </article>
-      <p class="helper">Сообщения передаются в Cloud.ru для генерации ответа. История хранится только в открытой вкладке и не записывается в файлы.</p>
+    </section>
+    <section id="page-monitor" aria-labelledby="monitor-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">СИСТЕМА</p><h1 id="monitor-title">Мониторинг</h1></div></div>
+      <article class="panel"><h2>Состояние рабочего пространства</h2><div id="monitor-content">Загрузка…</div><button class="button secondary" id="monitor-refresh">Обновить данные</button><button class="button secondary" id="monitor-backup">Создать резервную копию</button><p id="monitor-backup-result" class="helper" role="status"></p></article>
     </section>
     <section id="page-tools" aria-labelledby="tools-title" hidden>
       <div class="page-heading"><div><p class="eyebrow">ЛОКАЛЬНЫЕ ОПЕРАЦИИ</p><h1 id="tools-title">Инструменты</h1></div></div>
@@ -116,6 +142,11 @@
         <article class="panel"><h2>Документы</h2><p>Открыть локальную папку документов Sakuya в проводнике Windows.</p><button class="button secondary" id="open-documents" disabled>Открыть документы</button></article>
         <article class="panel"><h2>Диагностика</h2><p>Просмотр журнала без выполнения произвольных команд.</p><button class="button secondary" id="tools-log" disabled>Открыть журнал</button></article>
       </div>
+      <article class="panel documents-panel"><h2>Файлы Sakuya</h2><p>Загрузка и просмотр локальных документов. Скрипты хранятся как текст и никогда не запускаются.</p>
+        <label for="document-upload">Добавить файл в документы</label><input type="file" id="document-upload" accept=".txt,.md,.csv,.json,.log,.py,.js,.css,.html,.docx,.pdf,.png,.jpg,.jpeg,.webp">
+        <button class="button primary" id="document-upload-button">Сохранить файл</button><div id="document-list" class="document-list" aria-live="polite"></div>
+        <p id="document-preview" class="document-preview" role="status"></p>
+      </article>
       <p class="helper">Операции ограничены разрешёнными действиями; ввод команд и произвольных путей отключён.</p>
     </section>
     <section id="page-updates" aria-labelledby="updates-title" hidden>
@@ -126,6 +157,7 @@
   </main>
 </div>
 <dialog id="log-dialog" aria-labelledby="log-title"><div class="dialog-heading"><div><p class="eyebrow">СООБЩЕНИЯ ПРОГРАММЫ</p><h2 id="log-title">Журнал работы</h2></div><button class="icon-button" id="close-log" aria-label="Закрыть журнал"><svg><use href="#i-close"/></svg></button></div><p class="helper" id="log-path"></p><pre id="log-content" tabindex="0">Загрузка…</pre><div class="dialog-footer"><span>Последние 80 строк</span><button class="button secondary" id="open-log-file" hidden>Открыть файл</button></div></dialog>
+<button class="sakuya-avatar" id="sakuya-avatar" aria-label="Открыть чат Sakuya" title="Открыть чат Sakuya"><span aria-hidden="true">🦊</span><span class="sakuya-avatar-glow">✦</span></button>
 <div class="toast-region" id="toasts" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>
