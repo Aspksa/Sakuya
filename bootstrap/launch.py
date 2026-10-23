@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import argparse
 import ctypes
+from contextlib import nullcontext
 import importlib.util
 import json
 import logging
@@ -167,7 +168,8 @@ def run(mode="normal", autostart=False):
         session, token = secrets.token_hex(16), secrets.token_urlsafe(32)
         advice = messages["console"]["help_server"]
         display.begin(messages["console"]["stage_server"])
-        server = core.create_server(data, instance_id(data), session, token, stop, settings, logger)
+        runtime = {"mode": mode, "tray": "starting"}
+        server = core.create_server(data, instance_id(data), session, token, stop, settings, logger, runtime=runtime)
         thread = threading.Thread(target=server.serve_forever, name="sakuya-http", daemon=True)
         thread.start()
         state = {"url": f"http://127.0.0.1:{server.server_port}", "pid": os.getpid(),
@@ -197,6 +199,7 @@ def run(mode="normal", autostart=False):
         except Exception:
             logger.exception(messages["tray_error"])
         display.end("success" if tray is not None else "warning")
+        runtime["tray"] = "active" if tray is not None else "unavailable"
         total = display.summary(state["url"], mode)
         logger.info("Итог запуска: адрес=%s; режим=%s; время=%.2f с; этапы=%s", state["url"], mode, total, display.timings)
         if mode == "diagnostic":
@@ -220,6 +223,7 @@ def run(mode="normal", autostart=False):
                 display.refresh()
                 hidden = False
                 logger.warning(messages["fallback"])
+                runtime["tray"] = "unavailable"
                 tray = None
     except (Exception, KeyboardInterrupt) as exc:
         console(True)
@@ -248,7 +252,8 @@ def run(mode="normal", autostart=False):
                     tray.wait(timeout=5)
             if owned:
                 if state is not None and settings is not None and core is not None:
-                    core.save(data, settings)
+                    with server.settings_lock if server is not None else nullcontext():
+                        core.save(data, settings)
                 if state is not None:
                     (data / "run/instance.json").unlink(missing_ok=True)
                     (data / "run/tray-ready.json").unlink(missing_ok=True)

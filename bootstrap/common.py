@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 APP_ID = "aspksa.sakuya"
 APP_NAME = "Sakuya"
+APP_VERSION = "0.1.0"
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 

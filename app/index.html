@@ -1,18 +1,88 @@
 <!doctype html>
-<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sakuya</title><style>
-:root{
---color-background:#FFF9EE;
---color-surface:#FFFDF8;
---color-surface-soft:#F4E5CF;
---color-border:#DCC3A0;
---color-gold:#D6A24D;
---color-gold-deep:#8A591F;
---color-amber:#F2C66D;
---color-peach:#EBC0A8;
---color-text:#2B211C;
---color-text-muted:#715D4E;
-font-family:system-ui,sans-serif;color:var(--color-text);background:var(--color-background)
-}body{margin:0;min-height:100vh;display:grid;place-items:center}
-main{padding:40px;max-width:560px}small{color:var(--color-gold-deep);letter-spacing:.15em}h1{font-size:clamp(48px,10vw,84px);font-weight:400;margin:16px 0;color:var(--color-gold-deep)}p{line-height:1.7;color:var(--color-text-muted)}
-</style><main><small>ЛОКАЛЬНОЕ ПРОСТРАНСТВО</small><h1>Sakuya</h1><p>Основа проекта запущена. Здесь появятся ваши модули.</p></main></html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFF9EE">
+  <title>Sakuya — личное пространство</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">К содержимому</a>
+<svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-fox" viewBox="0 0 64 64"><path d="M14 13l17 11 19-11-5 26-13 12-13-12z"/><path d="M19 30l10 7m16-7l-10 7m-6 7h6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6l6 6-6 6"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5h7l2 3h9v12H3z"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h7"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 10.5 7M20 3v6h-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4M10 10h4v4h-4z"/></symbol>
+  <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3 4h18v13H3zM8 21h8m-4-4v4M7 13h10"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></symbol>
+</svg>
+<button class="drawer-overlay" id="drawer-overlay" aria-label="Закрыть меню" hidden></button>
+<aside class="sidebar" id="sidebar" aria-label="Боковое меню">
+  <a class="brand" href="#home" aria-label="Sakuya — главная">
+    <span class="brand-mark"><svg><use href="#i-fox"/></svg></span>
+    <span class="brand-copy"><span class="brand-name">Sakuya<span>✦</span></span><span class="brand-caption">Личное пространство</span></span>
+  </a>
+  <div class="sidebar-rule"></div>
+  <p class="nav-label">ПРОСТРАНСТВО</p>
+  <nav aria-label="Основные разделы">
+    <a class="nav-item active" href="#home" id="nav-home" aria-current="page" title="Главная"><svg><use href="#i-home"/></svg><span>Главная</span><span class="nav-active-mark"></span></a>
+    <a class="nav-item" href="#settings" id="nav-settings" title="Настройки"><svg><use href="#i-settings"/></svg><span>Настройки</span></a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="local-card"><svg><use href="#i-shield"/></svg><span><strong>Ваше пространство</strong><small>Работает на этом компьютере</small></span></div>
+    <div class="sidebar-footer"><span class="footer-version">Sakuya <span data-bind="version">…</span></span><span class="local-label">ЛОКАЛЬНО</span></div>
+  </div>
+</aside>
+<div class="workspace">
+  <header class="topbar">
+    <div class="topbar-left"><button class="icon-button" id="menu-toggle" aria-controls="sidebar" aria-expanded="true" aria-label="Свернуть меню" title="Свернуть меню"><svg><use href="#i-menu"/></svg></button><span class="breadcrumb">Пространство <span>/</span> <strong id="breadcrumb-page">Главная</strong></span></div>
+    <div class="topbar-right"><span class="connection" id="connection" role="status"><svg><use href="#i-refresh"/></svg><span>Подключение…</span></span><button class="icon-button" id="refresh" title="Обновить состояние" aria-label="Обновить состояние"><svg><use href="#i-refresh"/></svg></button><span class="profile-mark" aria-hidden="true">S</span></div>
+  </header>
+  <main id="main" tabindex="-1">
+    <noscript><div class="notice warning">Для настроек и состояния Sakuya включите JavaScript в браузере.</div></noscript>
+    <div class="notice warning" id="connection-error" hidden><div><strong>Нет связи с Sakuya</strong><p>Проверьте, что программа запущена. Если она перезапущена на другом порту, откройте сайт через значок в трее или Sakuya.bat.</p></div><button class="button secondary" id="retry">Повторить</button></div>
+    <section id="page-home" aria-labelledby="home-title">
+      <div class="page-heading"><div><p class="eyebrow">ВАШЕ ЛИЧНОЕ ПРОСТРАНСТВО</p><h1 id="home-title">Главная</h1></div><span class="heading-note">Всё начинается здесь</span></div>
+      <div class="welcome">
+        <div class="welcome-copy"><span class="welcome-kicker"><span>✦</span> SAKUYA</span><h2>Добро пожаловать<span>.</span></h2><p>Всё готово для спокойной работы.<br>Ваши настройки и состояние Sakuya — под рукой.</p><a class="button primary" href="#settings">Открыть настройки <svg><use href="#i-arrow"/></svg></a></div>
+        <div class="welcome-art" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="art-star star-one">✦</span><span class="art-star star-two">✧</span><div class="fox-seal"><svg><use href="#i-fox"/></svg></div><span class="art-caption">SAKUYA</span></div>
+      </div>
+      <div class="section-heading"><h2>Состояние Sakuya</h2><span>Данные работающей программы</span></div>
+      <div class="status-grid">
+        <article class="status-card"><span class="card-icon"><svg><use href="#i-chip"/></svg></span><span class="metric-label">Окружение</span><strong class="metric" id="python-version">…</strong><span class="metric-note">Рабочий Python</span></article>
+        <article class="status-card"><span class="card-icon"><svg><use href="#i-clock"/></svg></span><span class="metric-label">Время работы</span><strong class="metric" id="uptime">…</strong><span class="metric-note" id="mode-note">Проверка режима…</span></article>
+        <article class="status-card"><span class="card-icon"><svg><use href="#i-tray"/></svg></span><span class="metric-label">Управление</span><strong class="metric" id="tray-status">…</strong><span class="metric-note" id="tray-note">Проверка трея…</span></article>
+      </div>
+      <div class="section-heading"><h2>Быстрый доступ</h2><span>Настройки и файлы</span></div>
+      <div class="access-grid"><article class="panel data-panel"><div class="panel-title"><span class="card-icon small"><svg><use href="#i-folder"/></svg></span><h3>Папка данных</h3><span class="tag">На компьютере</span></div><p>Документы и настройки хранятся отдельно от программы.</p><div class="path-box" id="data-path">Загрузка пути…</div><button class="text-button" id="open-data" disabled>Открыть папку <svg><use href="#i-arrow"/></svg></button><small class="helper" id="folder-hint"></small></article>
+      <article class="panel journal-panel"><div class="panel-title"><span class="card-icon small"><svg><use href="#i-log"/></svg></span><h3>Журнал работы</h3></div><p>Сообщения запуска и подробности, если что-то пошло не так.</p><button class="button secondary" id="show-log" disabled>Посмотреть журнал <svg><use href="#i-arrow"/></svg></button><div class="journal-note"><svg><use href="#i-shield"/></svg><span>Журнал остаётся на вашем компьютере</span></div></article></div>
+    </section>
+    <section id="page-settings" aria-labelledby="settings-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">ПОД ВАШ РИТМ</p><h1 id="settings-title">Настройки</h1></div><span class="heading-note">Удобство в деталях</span></div>
+      <div class="settings-layout"><div class="settings-main">
+        <form class="panel settings-panel" id="settings-form"><div class="settings-intro"><span class="card-icon"><svg><use href="#i-settings"/></svg></span><div><h2>Запуск Sakuya</h2><p>Как открывается ваше пространство.</p></div></div>
+          <div class="field-row"><div><label for="port">Предпочитаемый порт</label><p class="helper" id="port-help">0 — выбрать свободный автоматически. Изменение действует при следующем запуске.</p></div><input id="port" name="port" type="number" min="0" max="65535" step="1" inputmode="numeric" required aria-describedby="port-help" value="0" disabled></div>
+          <div class="field-row"><div><label for="autostart-browser">Открывать браузер при входе в Windows</label><p class="helper" id="browser-help">При обычном запуске сайт открывается всегда.</p></div><label class="switch"><input id="autostart-browser" type="checkbox" aria-describedby="browser-help" disabled><span aria-hidden="true"></span></label></div>
+          <div class="form-error" id="form-error" role="alert" hidden></div><div class="form-actions"><span id="save-note">Настройки ещё не загружены</span><button class="button secondary" type="button" id="reset-settings" disabled>Отменить</button><button class="button primary" type="submit" id="save-settings" disabled>Сохранить <svg><use href="#i-check"/></svg></button></div>
+        </form>
+        <section class="panel settings-panel" aria-labelledby="startup-title"><div class="settings-intro"><span class="card-icon"><svg><use href="#i-clock"/></svg></span><div><h2 id="startup-title">Автозапуск Windows</h2><p>Применяется сразу, отдельно от настроек выше.</p></div></div><div class="field-row"><div><label for="startup-enabled">Запускать Sakuya при входе</label><p class="helper" id="startup-help">Проверка автозапуска…</p></div><label class="switch"><input id="startup-enabled" type="checkbox" aria-describedby="startup-help" disabled><span aria-hidden="true"></span></label></div></section>
+      </div><aside class="settings-aside"><section class="panel system-panel"><span class="system-emblem"><svg><use href="#i-fox"/></svg></span><h2>Sakuya</h2><p>Личное пространство</p><dl><div><dt>Версия</dt><dd data-bind="version">…</dd></div><div><dt>Python</dt><dd id="about-python">…</dd></div><div><dt>Режим</dt><dd id="about-mode">…</dd></div><div><dt>Процесс</dt><dd id="about-pid">…</dd></div><div><dt>Адрес</dt><dd id="about-address">…</dd></div></dl><span class="system-label"><svg><use href="#i-shield"/></svg>Работает локально</span></section><section class="settings-tip"><span>✦</span><p>Предпочитаемый порт может быть занят. Sakuya выберет свободный и откроет правильный адрес.</p></section></aside></div>
+    </section>
+    <footer class="page-footer"><span>Sakuya <span class="footer-star">✦</span> Личное пространство</span><span>На вашем компьютере</span></footer>
+  </main>
+</div>
+<dialog id="log-dialog" aria-labelledby="log-title"><div class="dialog-heading"><div><p class="eyebrow">СООБЩЕНИЯ ПРОГРАММЫ</p><h2 id="log-title">Журнал работы</h2></div><button class="icon-button" id="close-log" aria-label="Закрыть журнал"><svg><use href="#i-close"/></svg></button></div><p class="helper" id="log-path"></p><pre id="log-content" tabindex="0">Загрузка…</pre><div class="dialog-footer"><span>Последние 80 строк</span><button class="button secondary" id="open-log-file" hidden>Открыть файл</button></div></dialog>
+<div class="toast-region" id="toasts" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
