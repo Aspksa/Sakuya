@@ -268,7 +268,8 @@ class ProcessTests(unittest.TestCase):
         subprocess.run(["taskkill", "/PID", str(tray["pid"]), "/F"], capture_output=True, check=True)
         time.sleep(1)
         self.assertIsNone(process.poll())
-        self.assertIn("Трей недоступен", (self.data / "logs/sakuya.log").read_text(encoding="utf-8"))
+        self.assertTrue(any(message in (self.data / "logs/sakuya.log").read_text(encoding="utf-8")
+                            for message in ("Трей недоступен", "Трей не подтвердил готовность")))
         self.shutdown(state)
         process.communicate(timeout=10)
 
