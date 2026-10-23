@@ -463,7 +463,7 @@ $('chat-form').addEventListener('submit',async event=>{
     addChatMessage('user',value);
     partial=addChatMessage('assistant','');
     const reader=response.body.getReader(), decoder=new TextDecoder();
-    let buffer='',done=false;
+    let buffer='',done=false,finished=false;
     while(!done){
       const packet=await reader.read();done=packet.done;
       buffer+=decoder.decode(packet.value||new Uint8Array(),{stream:!done});
@@ -474,9 +474,11 @@ $('chat-form').addEventListener('submit',async event=>{
         const item=JSON.parse(line);
         if(item.error)throw new Error(item.error);
         if(item.delta){answer+=item.delta;partial.textContent=answer;$('chat-messages').scrollTop=$('chat-messages').scrollHeight;}
-        if(item.done){chatHistory=[...history,{role:'assistant',content:answer}];$('chat-input').value='';$('chat-file').value='';$('chat-file-info').textContent='';$('chat-status').textContent='Ответ сохранён локально.';}
+        if(item.done){finished=true;chatHistory=[...history,{role:'assistant',content:answer}];$('chat-input').value='';$('chat-file').value='';$('chat-file-info').textContent='';$('chat-status').textContent='Ответ сохранён локально.';}
       }
     }
+    if(!finished)throw new Error('Соединение оборвалось до завершения ответа');
+    $('chat-status').textContent='Ответ сохранён · оценка ≈'+Math.ceil((plain.length+answer.length)/4)+' токенов (не счёт Cloud.ru).';
     await loadChatList();
   }catch(error){
     $('chat-status').textContent=error.name==='AbortError'?'Генерация остановлена. Неполный ответ не сохранён.':'Ошибка генерации: '+error.message;
