@@ -221,7 +221,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         raise ValueError('Укажите вложение')
                     return self.reply(200,{'text':workspace.extract_attachment(payload['name'],payload['base64'])})
                 if self.path == '/api/chat/stream':
-                    if 'messages' not in payload or set(payload)-{'messages','chat_id','model','use_memory'}:
+                    if 'messages' not in payload or set(payload)-{'messages','chat_id','model','use_memory','image'}:
                         raise ValueError('Некорректный запрос чата')
                     if not cloudru.has_key(data):
                         return self.reply(400, {'error':'Сначала сохраните ключ Cloud.ru'})
@@ -242,7 +242,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         notes = workspace.list_memory(data) if payload.get('use_memory') else []
                         memory_text = '\\n'.join(note['content'] for note in notes[:50])[:32000]
                         chunks=cloud_chat.stream(data,history,model=model,
-                                                 system_context=memory_text or None)
+                                                 system_context=memory_text or None,image=payload.get('image'))
                         self.send_response(200)
                         self.send_header('Content-Type','application/x-ndjson; charset=utf-8')
                         self.send_header('Cache-Control','no-store')
