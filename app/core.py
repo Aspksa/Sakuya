@@ -38,6 +38,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
     startup_lock = threading.Lock()
     update_lock = threading.Lock()
     cloud_lock = threading.Lock()
+    chat_lock = threading.Lock()
     started = time.monotonic()
     runtime = runtime if runtime is not None else {'mode': 'normal', 'tray': 'unavailable'}
 
@@ -127,7 +128,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
             if self.headers.get('Transfer-Encoding'):
                 raise ValueError('Неподдерживаемый формат запроса')
             length = int(self.headers.get('Content-Length', '-1'))
-            if not 0 <= length <= (32768 if self.path == '/api/chat' else 4096):
+            if not 0 <= length <= (65536 if self.path == '/api/chat' else 4096):
                 raise ValueError('Недопустимый размер запроса')
             body = self.rfile.read(length)
             if len(body) != length:
@@ -162,7 +163,12 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         raise ValueError('Ожидается история сообщений')
                     if not cloudru.has_key(data):
                         return self.reply(400, {'error': 'Сначала сохраните API-ключ Cloud.ru'})
-                    result = cloud_chat.complete(data, payload['messages'])
+                    if not chat_lock.acquire(blocking=False):
+                        return self.reply(429, {'error': 'Предыдущий запрос ещё выполняется'})
+                    try:
+                        result = cloud_chat.complete(data, payload['messages'])
+                    finally:
+                        chat_lock.release()
                     return self.reply(200, result)
                 if self.path == '/api/cloudru/key':
                     if set(payload) != {'key'} or not isinstance(payload['key'], str):
