@@ -338,8 +338,8 @@ let activeChatModel = '';
 async function loadChatList() {
   try {
     const term = $('chat-search').value.trim();
-    const result = await api('/api/workspace/chats');
-    const chats = result.chats.filter(item => !term || item.title.toLowerCase().includes(term.toLowerCase()));
+    const result = await api('/api/workspace/chats?q='+encodeURIComponent(term));
+    const chats = result.chats;
     const list = $('chat-list'); list.replaceChildren();
     for (const chat of chats) {
       const button=document.createElement('button');
