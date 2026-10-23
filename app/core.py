@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from common import APP_ID, APP_NAME, APP_VERSION, atomic_json
 import startup
 import updater
+import cloudru
 from release_stage import HEX40, stage_release, verify_staged_release
 from recovery import arm_verified_update, recover
 
@@ -35,6 +36,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
     settings_lock = threading.RLock()
     startup_lock = threading.Lock()
     update_lock = threading.Lock()
+    cloud_lock = threading.Lock()
     started = time.monotonic()
     runtime = runtime if runtime is not None else {'mode': 'normal', 'tray': 'unavailable'}
 
@@ -91,6 +93,15 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 if path == '/api/update/status':
                     return self.reply(200, {'repository': 'Aspksa/Sakuya', 'automatic_install': False,
                                             'recovery_available': True, 'message': 'Доступна подготовка обновления. Для применения нужен перезапуск Sakuya'})
+                if path == '/api/cloudru/status':
+                    config = cloudru.get_config(data)
+                    return self.reply(200, {'connected': cloudru.has_key(data), 'model': config['model'],
+                                            'provider': 'Cloud.ru Foundation Models'})
+                if path == '/api/cloudru/models':
+                    if not cloudru.has_key(data):
+                        return self.reply(400, {'error': 'Сначала сохраните API-ключ'})
+                    models = cloudru.fetch_models(data)
+                    return self.reply(200, {'models': models, 'connected': True})
                 if path == '/api/tools':
                     return self.reply(200, {'actions': ['open-data', 'open-documents', 'open-log'] if os.name == 'nt' else [],
                                             'arbitrary_commands': False})
@@ -145,6 +156,28 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/cloudru/key':
+                    if set(payload) != {'key'} or not isinstance(payload['key'], str):
+                        raise ValueError('Необходимо указать API-ключ')
+                    if os.name != 'nt':
+                        return self.reply(501, {'error': 'Защищённое хранение ключей доступно в Windows'})
+                    with cloud_lock:
+                        cloudru.store_key(data, payload['key'])
+                    logger.info('Ключ Cloud.ru сохранён в защищённом локальном хранилище')
+                    return self.reply(200, {'saved': True})
+                if self.path == '/api/cloudru/delete':
+                    if payload != {'confirm': True}:
+                        raise ValueError('Нужно подтвердить удаление ключа')
+                    with cloud_lock:
+                        cloudru.delete_key(data)
+                    logger.info('Ключ Cloud.ru удалён')
+                    return self.reply(200, {'deleted': True})
+                if self.path == '/api/cloudru/model':
+                    if set(payload) != {'model'}:
+                        raise ValueError('Укажите модель')
+                    with cloud_lock:
+                        cloudru.set_model(data, payload['model'])
+                    return self.reply(200, {'model': payload['model']})
                 if self.path == '/api/update/restart':
                     if payload != {'confirm': True}:
                         raise ValueError('Требуется подтверждение перезапуска')

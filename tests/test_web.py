@@ -172,6 +172,24 @@ class WebTests(unittest.TestCase):
                                    {'Origin': 'https://invalid.example'})[0], 403)
         self.assertFalse(self.stop.is_set())
 
+    def test_cloudru_key_and_model_endpoints_are_bounded(self):
+        self.assertEqual(self.post('/api/cloudru/key', {'key': 42})[0],400)
+        self.assertEqual(self.post('/api/cloudru/model', {'model': 'invalid model'})[0],400)
+        self.assertEqual(self.post('/api/cloudru/delete', {'confirm':False})[0],400)
+        self.assertEqual(self.post('/api/cloudru/key', {'key':'secret-value'},
+                                   {'Origin':'https://external.example'})[0],403)
+        with patch.object(core.cloudru, 'store_key') as store:
+            if os.name == 'nt':
+                self.assertEqual(self.post('/api/cloudru/key', {'key':'mock-test-secret'})[0],200)
+                store.assert_called_once()
+            else:
+                self.assertEqual(self.post('/api/cloudru/key', {'key':'mock-test-secret'})[0],501)
+                store.assert_not_called()
+        self.assertEqual(self.post('/api/cloudru/model', {'model':'test/model'})[0],200)
+        status=self.get('/api/cloudru/status')
+        self.assertEqual(status['model'],'test/model')
+        self.assertNotIn('key',status)
+
     def test_logs_are_bounded(self):
         (self.data/'logs/sakuya.log').write_text('\n'.join('line '+str(i) for i in range(100)),encoding='utf-8')
         result=self.get('/api/logs')

@@ -19,3 +19,12 @@ body.sidebar-collapsed{--sidebar-width:86px}.sidebar-collapsed .sidebar{padding-
 
 /* Unified dashboard and navigation improvements */
 .status-grid.system-grid{margin-top:14px}.system-grid .status-card{min-width:0}.system-grid .metric{font-size:clamp(16px,2vw,25px);overflow-wrap:anywhere}.sidebar nav{min-height:0;overflow-y:auto;scrollbar-width:thin}.nav-item:focus-visible{outline-offset:-3px}.panel .button{margin-top:15px}@media(max-width:650px){.system-grid{grid-template-columns:1fr}.system-grid .status-card{min-height:94px}}@media(prefers-reduced-motion:reduce){.sidebar,.nav-item{transition:none}}
+
+/* Cloud.ru provider settings */
+.cloudru-controls{padding:22px;display:grid;gap:14px;min-width:0}
+.cloudru-controls>label{font-size:12px;font-weight:600}
+.cloudru-input-row,.cloudru-actions{display:flex;gap:10px;flex-wrap:wrap}
+.cloudru-input-row input{flex:1 1 220px;min-width:0;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);border-radius:8px;padding:11px}
+.cloudru-controls select{width:100%;min-width:0;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);padding:12px}
+.cloudru-actions .button{margin-top:0}
+@media(max-width:650px){.cloudru-input-row>.button,.cloudru-actions>.button{flex:1 1 100%}}

@@ -85,6 +85,20 @@
           <div class="field-row"><div><label for="autostart-browser">Открывать браузер при входе в Windows</label><p class="helper" id="browser-help">При обычном запуске сайт открывается всегда.</p></div><label class="switch"><input id="autostart-browser" type="checkbox" aria-describedby="browser-help" disabled><span aria-hidden="true"></span></label></div>
           <div class="form-error" id="form-error" role="alert" hidden></div><div class="form-actions"><span id="save-note">Настройки ещё не загружены</span><button class="button secondary" type="button" id="reset-settings" disabled>Отменить</button><button class="button primary" type="submit" id="save-settings" disabled>Сохранить <svg><use href="#i-check"/></svg></button></div>
         </form>
+        <section class="panel settings-panel" aria-labelledby="cloudru-title">
+          <div class="settings-intro"><span class="card-icon"><svg><use href="#i-chip"/></svg></span><div><h2 id="cloudru-title">Cloud.ru · Foundation Models</h2><p>Подключение моделей через ваш API-ключ</p></div></div>
+          <div class="cloudru-controls">
+            <label for="cloudru-key">API-ключ Cloud.ru</label>
+            <div class="cloudru-input-row"><input id="cloudru-key" type="password" placeholder="Вставьте API-ключ" autocomplete="off" spellcheck="false"><button class="button secondary" id="cloudru-save" type="button">Сохранить ключ</button></div>
+            <small class="helper">Ключ хранится в зашифрованном виде средствами Windows и не выводится обратно в браузер.</small>
+            <p class="helper" id="cloudru-status" role="status">Проверка настроек Cloud.ru…</p>
+            <div class="cloudru-actions"><button class="button secondary" type="button" id="cloudru-test">Проверить связь и загрузить модели</button><button class="button secondary" type="button" id="cloudru-delete">Удалить ключ</button></div>
+            <label for="cloudru-model">Модель</label>
+            <select id="cloudru-model"><option value="">Сначала проверьте соединение</option></select>
+            <button class="button primary" id="cloudru-model-save" type="button" disabled>Сохранить модель</button>
+            <p class="helper">Проверка связи запрашивает список моделей, но не создаёт платную генерацию. При использовании моделей в будущем тарификация Cloud.ru может применяться.</p>
+          </div>
+        </section>
         <section class="panel settings-panel" aria-labelledby="startup-title"><div class="settings-intro"><span class="card-icon"><svg><use href="#i-clock"/></svg></span><div><h2 id="startup-title">Автозапуск Windows</h2><p>Применяется сразу, отдельно от настроек выше.</p></div></div><div class="field-row"><div><label for="startup-enabled">Запускать Sakuya при входе</label><p class="helper" id="startup-help">Проверка автозапуска…</p></div><label class="switch"><input id="startup-enabled" type="checkbox" aria-describedby="startup-help" disabled><span aria-hidden="true"></span></label></div></section>
       </div><aside class="settings-aside"><section class="panel system-panel"><span class="system-emblem"><svg><use href="#i-fox"/></svg></span><h2>Sakuya</h2><p>Личное пространство</p><dl><div><dt>Версия</dt><dd data-bind="version">…</dd></div><div><dt>Python</dt><dd id="about-python">…</dd></div><div><dt>Режим</dt><dd id="about-mode">…</dd></div><div><dt>Процесс</dt><dd id="about-pid">…</dd></div><div><dt>Адрес</dt><dd id="about-address">…</dd></div></dl><span class="system-label"><svg><use href="#i-shield"/></svg>Работает локально</span></section><section class="settings-tip"><span>✦</span><p>Предпочитаемый порт может быть занят. Sakuya выберет свободный и откроет правильный адрес.</p></section></aside></div>
     </section>
