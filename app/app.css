@@ -110,3 +110,13 @@ button{min-height:36px}
 @keyframes sakuya-hover{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @media(max-width:650px){.sakuya-avatar{right:15px;bottom:74px;width:52px;height:52px}.sakuya-avatar>span:first-child{font-size:28px}.toast-region{bottom:132px}}
 @media(prefers-reduced-motion:reduce){.sakuya-avatar{animation:none}}
+
+.documents-panel{margin-top:18px;display:grid;gap:12px}
+.documents-panel label{font-size:12px;font-weight:600}
+.documents-panel input[type=file]{min-width:0;font-size:12px;max-width:100%}
+.document-list{display:grid;gap:8px;max-height:420px;overflow:auto}
+.document-entry{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FBF6EC;padding:10px;border-radius:8px}
+.document-entry span{min-width:0;flex:1 1 180px;overflow-wrap:anywhere;font-size:12px}
+.document-entry .button{margin:0}
+.document-preview{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;border:1px solid var(--color-border);border-radius:8px;padding:12px;font:12px/1.55 Consolas,monospace}
+@media(max-width:650px){.document-entry .button{flex:1 1 auto}}
