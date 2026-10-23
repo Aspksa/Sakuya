@@ -7,6 +7,7 @@ import argparse
 import os
 import re
 import sqlite3
+from contextlib import closing
 import sys
 import time
 
@@ -23,7 +24,7 @@ def restore(data: Path, name: str):
     source=data/"backups"/name
     if source.is_symlink() or not source.is_file():
         raise ValueError("Резервная копия не найдена")
-    with sqlite3.connect(str(source)) as connection:
+    with closing(sqlite3.connect(str(source))) as connection:
         valid=connection.execute("PRAGMA integrity_check").fetchone()
         tables={row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if not valid or valid[0]!="ok" or not {"conversations","messages","memories"}.issubset(tables):
@@ -31,8 +32,8 @@ def restore(data: Path, name: str):
     original=data/"workspace.sqlite3"
     if original.exists():
         safety=data/"backups"/("before-restore-"+str(int(time.time()))+".sqlite3")
-        with sqlite3.connect(str(original)) as current:
-            with sqlite3.connect(str(safety)) as target:
+        with closing(sqlite3.connect(str(original))) as current:
+            with closing(sqlite3.connect(str(safety))) as target:
                 current.backup(target)
     temp=data/("workspace-restoring-"+str(os.getpid())+".sqlite3")
     try:
