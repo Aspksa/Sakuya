@@ -8,6 +8,8 @@ let saving = false;
 let startupBusy = false;
 let loading = false;
 let online = false;
+let availableUpdateSha = null;
+let preparingUpdate = false;
 const mobile = matchMedia('(max-width: 950px)');
 
 function toast(message, error = false) {
@@ -23,7 +25,7 @@ function toast(message, error = false) {
 }
 
 async function api(path, payload) {
-  const options = {cache:'no-store', signal:AbortSignal.timeout(16000)};
+  const options = {cache:'no-store', signal:AbortSignal.timeout(path === '/api/update/prepare' ? 120000 : 16000)};
   if (payload !== undefined) {
     options.method = 'POST';
     options.headers = {'Content-Type':'application/json','X-Sakuya-CSRF':csrf};
@@ -145,10 +147,18 @@ function route() {
 }
 async function checkUpdates(remote = false) {
   $('check-updates').disabled = true;
+  $('prepare-update').disabled = true;
+  availableUpdateSha = null;
   $('update-status').textContent = remote ? 'Проверка GitHub…' : 'Проверка возможностей…';
   try {
     const response = await api(remote ? '/api/update/check' : '/api/update/status');
-    $('update-status').textContent = remote ? (response.reachable ? 'GitHub доступен, версия ' + response.commit.slice(0,12) + '. Установка пока заблокирована до проверки отката.' : response.reason) : response.message;
+    if (remote && response.reachable) {
+      availableUpdateSha = response.commit;
+      $('update-status').textContent = 'GitHub: коммит ' + response.commit.slice(0,12);
+      $('prepare-update').disabled = preparingUpdate || !online;
+    } else {
+      $('update-status').textContent = remote ? response.reason : response.message;
+    }
   } catch (error) { $('update-status').textContent = 'Проверка не удалась: ' + error.message; }
   finally { $('check-updates').disabled = false; }
 }
@@ -215,6 +225,22 @@ async function openTarget(target,button) {
 $('open-documents').addEventListener('click',() => openTarget('documents',$('open-documents')));
 $('tools-log').addEventListener('click',() => $('show-log').click());
 $('check-updates').addEventListener('click',() => checkUpdates(true));
+$('prepare-update').addEventListener('click', async () => {
+  if (!availableUpdateSha || preparingUpdate || !online) return;
+  if (!confirm('Подготовить проверенный релиз? Для применения потребуется завершить Sakuya через трей и открыть Sakuya.bat ещё раз.')) return;
+  preparingUpdate = true;
+  $('prepare-update').disabled = true;
+  $('check-updates').disabled = true;
+  $('update-instructions').textContent = 'Загрузка и проверка файлов…';
+  try {
+    const result = await api('/api/update/prepare', {commit: availableUpdateSha});
+    if (result.prepared) {
+      $('update-instructions').textContent = 'Релиз подготовлен. Закройте Sakuya через значок трея и запустите Sakuya.bat повторно. При сбое пробного запуска повторное открытие BAT восстановит предыдущую версию.';
+      toast('Проверенный релиз подготовлен к следующему запуску.');
+    }
+  } catch (error) { $('update-instructions').textContent = error.message; toast(error.message, true); }
+  finally { preparingUpdate = false; $('check-updates').disabled = false; }
+});
 $('open-data').addEventListener('click',() => openTarget('data',$('open-data')));
 $('open-log-file').addEventListener('click',() => openTarget('log',$('open-log-file')));
 $('show-log').addEventListener('click',async () => {
