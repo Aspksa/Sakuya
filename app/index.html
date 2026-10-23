@@ -119,7 +119,7 @@
             <label for="chat-input">Сообщение</label>
             <textarea id="chat-input" rows="3" placeholder="Напишите сообщение…" required></textarea>
             <div class="chat-attachment"><label for="chat-file">Прикрепить текстовый документ или DOCX</label><input id="chat-file" type="file" accept=".txt,.md,.json,.csv,.log,.py,.js,.css,.html,.docx"><span id="chat-file-info" class="helper">До 2 МиБ. Текст документа отправится в модель вместе с сообщением.</span></div>
-            <div class="chat-actions"><span class="helper" id="chat-status" role="status">История хранится локально в Sakuya.</span><button class="button primary" id="chat-send" type="submit">Отправить</button><button class="button secondary" id="chat-stop" type="button" disabled>Остановить</button><button class="button secondary" id="chat-clear" type="button">Новый диалог</button></div>
+            <label class="chat-memory-opt"><input type="checkbox" id="chat-use-memory"> Использовать мои записи памяти в ответах Cloud.ru</label><div class="chat-actions"><span class="helper" id="chat-status" role="status">История хранится локально в Sakuya.</span><button class="button primary" id="chat-send" type="submit">Отправить</button><button class="button secondary" id="chat-stop" type="button" disabled>Остановить</button><button class="button secondary" id="chat-clear" type="button">Новый диалог</button></div>
           </form>
         </article>
       </div>
@@ -134,7 +134,7 @@
     </section>
     <section id="page-monitor" aria-labelledby="monitor-title" hidden>
       <div class="page-heading"><div><p class="eyebrow">СИСТЕМА</p><h1 id="monitor-title">Мониторинг</h1></div></div>
-      <article class="panel"><h2>Состояние рабочего пространства</h2><div id="monitor-content">Загрузка…</div><button class="button secondary" id="monitor-refresh">Обновить данные</button></article>
+      <article class="panel"><h2>Состояние рабочего пространства</h2><div id="monitor-content">Загрузка…</div><button class="button secondary" id="monitor-refresh">Обновить данные</button><button class="button secondary" id="monitor-backup">Создать резервную копию</button><p id="monitor-backup-result" class="helper" role="status"></p></article>
     </section>
     <section id="page-tools" aria-labelledby="tools-title" hidden>
       <div class="page-heading"><div><p class="eyebrow">ЛОКАЛЬНЫЕ ОПЕРАЦИИ</p><h1 id="tools-title">Инструменты</h1></div></div>
@@ -152,6 +152,7 @@
   </main>
 </div>
 <dialog id="log-dialog" aria-labelledby="log-title"><div class="dialog-heading"><div><p class="eyebrow">СООБЩЕНИЯ ПРОГРАММЫ</p><h2 id="log-title">Журнал работы</h2></div><button class="icon-button" id="close-log" aria-label="Закрыть журнал"><svg><use href="#i-close"/></svg></button></div><p class="helper" id="log-path"></p><pre id="log-content" tabindex="0">Загрузка…</pre><div class="dialog-footer"><span>Последние 80 строк</span><button class="button secondary" id="open-log-file" hidden>Открыть файл</button></div></dialog>
+<button class="sakuya-avatar" id="sakuya-avatar" aria-label="Открыть чат Sakuya" title="Открыть чат Sakuya"><span aria-hidden="true">🦊</span><span class="sakuya-avatar-glow">✦</span></button>
 <div class="toast-region" id="toasts" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>
