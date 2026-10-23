@@ -35,6 +35,13 @@ class UiContractTests(unittest.TestCase):
         self.assertFalse(set(parser.labels)-set(parser.ids),"Label missing target")
         self.assertTrue({"chat-input","cloudru-key","cloudru-model"}.issubset(set(parser.labels)))
 
+    def test_model_selection_synchronizes_chat_and_settings(self):
+        script=(ROOT / "app/app.js").read_text(encoding="utf-8")
+        self.assertIn("async function syncChatModel()",script)
+        self.assertIn("await syncChatModel();",script)
+        self.assertIn("activeChatModel=saved.model||'';",script)
+        self.assertIn("нет в каталоге",script)
+
     def test_all_navigation_targets_exist(self):
         html = (ROOT / "app/index.html").read_text(encoding="utf-8")
         for page in ("home","settings","chat","tools","updates"):
