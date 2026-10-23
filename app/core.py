@@ -42,7 +42,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 'tray': runtime.get('tray', 'unavailable'), 'python_version': sys.version.split()[0],
                 'python_executable': sys.executable, 'data_directory': str(data),
                 'settings': current, 'startup': startup.status(),
-                'capabilities': {'open_folder': os.name == 'nt', 'open_log': os.name == 'nt'}}
+                'capabilities': {'open_folder': os.name == 'nt', 'open_log': os.name == 'nt', 'open_documents': os.name == 'nt'}, 'update': {'repository': 'Aspksa/Sakuya', 'automatic_install': False, 'recovery_available': True}}
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = 'HTTP/1.0'
@@ -81,6 +81,12 @@ def create_server(data: Path, identity: str, session: str, token: str,
                     return self.reply(200, dict(snapshot(), csrf=csrf))
                 if path == '/api/status':
                     return self.reply(200, snapshot())
+                if path == '/api/update/status':
+                    return self.reply(200, {'repository': 'Aspksa/Sakuya', 'automatic_install': False,
+                                            'recovery_available': True, 'message': 'Установка обновлений отключена до проверки загрузчика и отката'})
+                if path == '/api/tools':
+                    return self.reply(200, {'actions': ['open-data', 'open-documents', 'open-log'] if os.name == 'nt' else [],
+                                            'arbitrary_commands': False})
                 if path == '/api/logs':
                     log = data / 'logs/sakuya.log'
                     if log.exists():
@@ -158,11 +164,15 @@ def create_server(data: Path, identity: str, session: str, token: str,
                     return self.reply(200, {'startup': result})
                 if self.path == '/api/open':
                     target = payload.get('target')
-                    if set(payload) != {'target'} or target not in ('data', 'log'):
+                    if set(payload) != {'target'} or type(target) is not str or target not in ('data', 'documents', 'log'):
                         raise ValueError('Неизвестная папка или файл')
                     if os.name != 'nt':
                         return self.reply(501, {'error': 'Открытие папки и файла доступно в Windows'})
-                    path = data if target == 'data' else data / 'logs/sakuya.log'
+                    path = {'data': data, 'documents': data / 'documents', 'log': data / 'logs/sakuya.log'}[target]
+                    if target == 'documents':
+                        path.mkdir(parents=True, exist_ok=True)
+                    if not path.exists():
+                        return self.reply(404, {'error': 'Файл или папка отсутствует'})
                     os.startfile(str(path))
                     return self.reply(200, {'opened': target})
                 self.reply(404, {'error': 'Действие не найдено'})
