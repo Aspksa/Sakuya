@@ -16,7 +16,7 @@ import urllib.request
 
 OWNER_REPO = "Aspksa/Sakuya"
 API = "https://api.github.com/repos/" + OWNER_REPO
-FILES = ("core.py", "workspace.py", "index.html", "app.js", "app.css", "favicon.svg")
+FILES = ("core.py", "workspace.py", "cloud_chat.py", "index.html", "app.js", "app.css", "favicon.svg")
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEADERS = {"User-Agent": "Sakuya-Release-Stager/1", "Accept": "application/vnd.github+json",
            "X-GitHub-Api-Version": "2022-11-28"}
