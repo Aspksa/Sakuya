@@ -53,6 +53,10 @@ function setConnection(connected) {
   $('port').disabled = !connected || saving;
   $('autostart-browser').disabled = !connected || saving;
   $('startup-enabled').disabled = !connected || startupBusy || !state?.startup.supported;
+  $('chat-send').disabled = !connected || chatBusy;
+  $('cloudru-save').disabled = !connected;
+  $('cloudru-test').disabled = !connected;
+  $('prepare-update').disabled = !connected || preparingUpdate || !availableUpdateSha;
   updateSave();
 }
 
@@ -170,7 +174,7 @@ $('menu-toggle').addEventListener('click', () => {
   if (mobile.matches) {
     const open = document.body.classList.toggle('mobile-menu-open');
     $('drawer-overlay').hidden = !open; $('menu-toggle').setAttribute('aria-expanded',String(open));
-    if (open) $('nav-home').focus();
+    if (open) $('sidebar').querySelector('.nav-item.active')?.focus();
   } else {
     const collapsed = document.body.classList.toggle('sidebar-collapsed');
     $('menu-toggle').setAttribute('aria-expanded',String(!collapsed));
@@ -333,7 +337,8 @@ function addChatMessage(role, content) {
   message.textContent = content;
   item.append(heading, message);
   $('chat-messages').append(item);
-  item.scrollIntoView({block:'end', behavior:'smooth'});
+  const container = $('chat-messages');
+  container.scrollTop = container.scrollHeight;
 }
 $('chat-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -358,7 +363,7 @@ $('chat-form').addEventListener('submit', async event => {
     toast(error.message,true);
   } finally {
     chatBusy = false;
-    $('chat-send').disabled = false;
+    $('chat-send').disabled = !online;
   }
 });
 $('chat-clear').addEventListener('click', () => {
