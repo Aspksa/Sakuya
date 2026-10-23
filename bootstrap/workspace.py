@@ -150,7 +150,7 @@ def extract_attachment(name: str, encoded: str) -> str:
     if not isinstance(name,str) or not NAME.fullmatch(name) or not isinstance(encoded,str):
         raise ValueError("Недопустимое вложение")
     extension=Path(name).suffix.lower()
-    if extension not in (".txt",".md",".json",".csv",".log",".py",".js",".css",".html",".docx"):
+    if extension not in (".txt",".md",".json",".csv",".log",".py",".js",".css",".html",".docx",".pdf"):
         raise ValueError("Для чтения поддерживаются TXT, MD, JSON, CSV, код и DOCX")
     if len(encoded)>((MAX_ATTACHMENT+2)//3)*4+8:
         raise ValueError("Вложение превышает 2 МиБ")
@@ -160,7 +160,21 @@ def extract_attachment(name: str, encoded: str) -> str:
         raise ValueError("Невозможно прочитать вложение") from None
     if len(raw)>MAX_ATTACHMENT:
         raise ValueError("Вложение превышает 2 МиБ")
-    if extension==".docx":
+    if extension==".pdf":
+        try:
+            from pypdf import PdfReader
+        except ImportError:
+            raise ValueError("Чтение PDF требует бесплатной библиотеки pypdf в Python Sakuya") from None
+        try:
+            document = PdfReader(io.BytesIO(raw))
+            if document.is_encrypted:
+                raise ValueError("Зашифрованный PDF не поддерживается")
+            text = "\\n".join((page.extract_text() or "") for page in document.pages[:100])
+        except ValueError:
+            raise
+        except Exception:
+            raise ValueError("Не удалось извлечь текст из PDF") from None
+    elif extension==".docx":
         from xml.etree import ElementTree as ET
         try:
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
