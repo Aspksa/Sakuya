@@ -434,7 +434,20 @@ $('chat-form').addEventListener('submit',async event=>{
   try {
     if(!currentChatId){const created=await api('/api/workspace/create',{title:'Новый диалог'});currentChatId=created.id;}
     let value=plain;
-    if(file)value+=(value?'\n\n':'')+await textAttachment(file);
+    let image=null;
+    if(file){
+      const mime=file.type.toLowerCase();
+      if(['image/png','image/jpeg','image/webp'].includes(mime)){
+        if(file.size>2*1024*1024)throw new Error('Изображение превышает 2 МиБ');
+        const bytes=new Uint8Array(await file.arrayBuffer());
+        let binary='';
+        for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+        image={mime,base64:btoa(binary)};
+        value+=(value?'\n\n':'')+'[Изображение: '+file.name+']';
+      }else{
+        value+=(value?'\n\n':'')+await textAttachment(file);
+      }
+    }
     const user={role:'user',content:value};
     const history=[...chatHistory,user];
     chatAbort=new AbortController();
@@ -442,7 +455,7 @@ $('chat-form').addEventListener('submit',async event=>{
     const response=await fetch('/api/chat/stream',{
       method:'POST',cache:'no-store',signal:chatAbort.signal,
       headers:{'Content-Type':'application/json','X-Sakuya-CSRF':csrf},
-      body:JSON.stringify({messages:history,chat_id:currentChatId,model:activeChatModel||undefined,use_memory:$('chat-use-memory').checked})
+      body:JSON.stringify({messages:history,chat_id:currentChatId,model:activeChatModel||undefined,use_memory:$('chat-use-memory').checked,image:image||undefined})
     });
     if(!response.ok){
       const failure=await response.json();throw new Error(failure.error||'Ошибка запроса');
