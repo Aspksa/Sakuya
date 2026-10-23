@@ -69,21 +69,21 @@ function Test-Python([string]$Executable, [string[]]$Prefix = @()) {
         $errorTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit(10000)) {
             $process.Kill()
-            Write-Log "Python probe timeout: $Executable"
+            Write-Log ($messages.python_timeout -f $Executable)
             return $null
         }
         $outputText = $outputTask.Result
         $errorText = $errorTask.Result
         if ($process.ExitCode -ne 0) {
-            Write-Log "Python probe failed: $Executable; $errorText"
+            Write-Log ($messages.python_probe_failed -f $Executable, $errorText)
             return $null
         }
         $result = $outputText.Trim() | ConvertFrom-Json
         if (-not (Test-Path -LiteralPath $result.exe -PathType Leaf)) { return $null }
-        Write-Log "Python $($result.version): $($result.exe)"
+        Write-Log ($messages.python_ok -f $result.version, $result.exe)
         return $result.exe
     } catch {
-        Write-Log "Python probe failed: $Executable; $($_.Exception.Message)"
+        Write-Log ($messages.python_probe_failed -f $Executable, $_.Exception.Message)
         return $null
     } finally { $process.Dispose() }
 }
@@ -168,6 +168,7 @@ function Install-LocalPython {
 try {
     [void][IO.Directory]::CreateDirectory($logDir)
     $messages = Get-Content -LiteralPath (Join-Path $root 'config\messages.ru.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Write-Log $messages.banner
     Write-Log $messages.preparing
     # Serialize environment preparation only; the Python supervisor owns the lifetime lock.
     $sha = [Security.Cryptography.SHA256]::Create()
@@ -182,6 +183,7 @@ try {
     if (-not (Test-Path -LiteralPath $runtimeTarget) -and (Test-Path -LiteralPath $runtimeBackup)) {
         [IO.Directory]::Move($runtimeBackup, $runtimeTarget)
     }
+    Write-Log $messages.python_check
     $pythonExe = Find-Python
     if (-not $pythonExe) { $pythonExe = Install-LocalPython }
     if ($Startup -ne 'none') {
