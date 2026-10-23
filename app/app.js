@@ -508,7 +508,7 @@ async function loadMonitor(){
     const sys=result.system||{};
     const ram=sys.process_ram_bytes?' · RAM процесса: '+(sys.process_ram_bytes/1048576).toFixed(1)+' МиБ':'';
     const total=sys.ram_total_bytes?' · ОЗУ: '+(sys.ram_total_bytes/1073741824).toFixed(1)+' ГиБ':'';
-    $('monitor-content').textContent='Диалогов: '+result.chats+' · Сообщений: '+result.messages+' · Записей памяти: '+result.memories+' · База: '+Math.ceil(result.database_bytes/1024)+' КиБ'+ram+total+' · CPU ядер: '+(sys.cpu_count||'?');
+    $('monitor-content').textContent='Диалогов: '+result.chats+' · Сообщений: '+result.messages+' · Записей памяти: '+result.memories+' · База: '+Math.ceil(result.database_bytes/1024)+' КиБ'+ram+total+' · CPU процесса: '+(sys.process_cpu_percent??'?')+'% · CPU ядер: '+(sys.cpu_count||'?');
   }catch(error){$('monitor-content').textContent=error.message;}
 }
 $('monitor-refresh').onclick=loadMonitor;
