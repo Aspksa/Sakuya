@@ -44,6 +44,8 @@ function setConnection(connected) {
   $('connection-error').hidden = connected;
   $('open-data').disabled = !connected || !state?.capabilities.open_folder;
   $('show-log').disabled = !connected;
+  $('tools-log').disabled = !connected;
+  $('open-documents').disabled = !connected || !state?.capabilities.open_documents;
   $('port').disabled = !connected || saving;
   $('autostart-browser').disabled = !connected || saving;
   $('startup-enabled').disabled = !connected || startupBusy || !state?.startup.supported;
@@ -125,14 +127,24 @@ function closeDrawer() {
 }
 
 function route() {
-  const settings = location.hash === '#settings';
-  $('page-home').hidden = settings; $('page-settings').hidden = !settings;
-  $('nav-home').classList.toggle('active',!settings); $('nav-settings').classList.toggle('active',settings);
-  $('nav-home').setAttribute('aria-current',settings ? 'false' : 'page');
-  $('nav-settings').setAttribute('aria-current',settings ? 'page' : 'false');
-  $('breadcrumb-page').textContent = settings ? 'Настройки' : 'Главная';
-  document.title = `Sakuya — ${settings ? 'Настройки' : 'Главная'}`;
-  closeDrawer(); window.scrollTo({top:0,behavior:'instant'});
+  const page = ['home','settings','tools','updates'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+  const names = {home:'Главная',settings:'Настройки',tools:'Инструменты',updates:'Обновления'};
+  for (const key of Object.keys(names)) {
+    $('page-' + key).hidden = key !== page;
+    $('nav-' + key).classList.toggle('active', key === page);
+    $('nav-' + key).setAttribute('aria-current', key === page ? 'page' : 'false');
+  }
+  $('breadcrumb-page').textContent = names[page];
+  document.title = 'Sakuya — ' + names[page];
+  closeDrawer();
+  if (page === 'updates') checkUpdates();
+  window.scrollTo({top:0,behavior:'instant'});
+}
+async function checkUpdates() {
+  try {
+    const response = await api('/api/update/status');
+    $('update-status').textContent = response.message;
+  } catch (error) { $('update-status').textContent = error.message; }
 }
 
 try { document.body.classList.toggle('sidebar-collapsed',localStorage.getItem('sakuya.menu.collapsed') === 'true'); } catch {}
@@ -190,10 +202,13 @@ $('startup-enabled').addEventListener('change',async () => {
 });
 async function openTarget(target,button) {
   button.disabled = true;
-  try { await api('/api/open',{target}); toast(target === 'data' ? 'Папка данных открыта на компьютере.' : 'Файл журнала открыт на компьютере.'); }
+  try { await api('/api/open',{target}); toast(target === 'data' ? 'Папка данных открыта.' : target === 'documents' ? 'Папка документов открыта.' : 'Журнал открыт.'); }
   catch (error) { toast(error.message,true); }
-  finally { button.disabled = !online || !(target === 'data' ? state?.capabilities.open_folder : state?.capabilities.open_log); }
+  finally { button.disabled = !online || !(target === 'data' ? state?.capabilities.open_folder : target === 'documents' ? state?.capabilities.open_documents : state?.capabilities.open_log); }
 }
+$('open-documents').addEventListener('click',() => openTarget('documents',$('open-documents')));
+$('tools-log').addEventListener('click',() => $('show-log').click());
+$('check-updates').addEventListener('click',checkUpdates);
 $('open-data').addEventListener('click',() => openTarget('data',$('open-data')));
 $('open-log-file').addEventListener('click',() => openTarget('log',$('open-log-file')));
 $('show-log').addEventListener('click',async () => {
