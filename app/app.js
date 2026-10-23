@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 const modes = {normal:'Обычный', diagnostic:'Диагностика', quiet:'Тихий'};
 let state = null;
+let chatHistory = [];
+let chatBusy = false;
 let csrf = '';
 let dirty = false;
 let saving = false;
@@ -25,7 +27,7 @@ function toast(message, error = false) {
 }
 
 async function api(path, payload) {
-  const options = {cache:'no-store', signal:AbortSignal.timeout(path === '/api/update/prepare' ? 120000 : 16000)};
+  const options = {cache:'no-store', signal:AbortSignal.timeout(path === '/api/update/prepare' ? 120000 : path === '/api/chat' ? 60000 : 16000)};
   if (payload !== undefined) {
     options.method = 'POST';
     options.headers = {'Content-Type':'application/json','X-Sakuya-CSRF':csrf};
@@ -132,8 +134,8 @@ function closeDrawer() {
 }
 
 function route() {
-  const page = ['home','settings','tools','updates'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
-  const names = {home:'Главная',settings:'Настройки',tools:'Инструменты',updates:'Обновления'};
+  const page = ['home','settings','chat','tools','updates'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+  const names = {home:'Главная',settings:'Настройки',chat:'Чат',tools:'Инструменты',updates:'Обновления'};
   for (const key of Object.keys(names)) {
     $('page-' + key).hidden = key !== page;
     $('nav-' + key).classList.toggle('active', key === page);
@@ -322,6 +324,47 @@ $('cloudru-delete').addEventListener('click',async () => {
   } catch (error) { toast(error.message,true); }
 });
 loadCloudru();
+function addChatMessage(role, content) {
+  const item = document.createElement('div');
+  item.className = 'chat-message ' + role;
+  const heading = document.createElement('strong');
+  heading.textContent = role === 'user' ? 'Вы' : 'Sakuya';
+  const message = document.createElement('p');
+  message.textContent = content;
+  item.append(heading, message);
+  $('chat-messages').append(item);
+  item.scrollIntoView({block:'end', behavior:'smooth'});
+}
+$('chat-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const value = $('chat-input').value.trim();
+  if (chatBusy || !value) return;
+  if (value.length > 4000) return toast('Сообщение слишком длинное.', true);
+  const messages = [...chatHistory.slice(-18), {role:'user', content:value}];
+  chatBusy = true;
+  $('chat-send').disabled = true;
+  $('chat-status').textContent = 'Sakuya формирует ответ…';
+  try {
+    const response = await api('/api/chat', {messages});
+    addChatMessage('user',value);
+    addChatMessage('assistant',response.answer);
+    chatHistory = [...messages,{role:'assistant',content:response.answer}].slice(-20);
+    $('chat-input').value = '';
+    $('chat-model').textContent = response.model;
+    $('chat-status').textContent = 'Готово';
+  } catch (error) {
+    $('chat-status').textContent = error.message;
+    toast(error.message,true);
+  } finally {
+    chatBusy = false;
+    $('chat-send').disabled = false;
+  }
+});
+$('chat-clear').addEventListener('click', () => {
+  chatHistory = [];
+  $('chat-messages').replaceChildren();
+  $('chat-status').textContent = 'История этой вкладки очищена.';
+});
 document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
 route(); refresh();
 setInterval(() => { if (!document.hidden) refresh(); },5000);

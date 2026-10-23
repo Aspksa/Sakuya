@@ -16,6 +16,7 @@ from common import APP_ID, APP_NAME, APP_VERSION, atomic_json
 import startup
 import updater
 import cloudru
+import cloud_chat
 from release_stage import HEX40, stage_release, verify_staged_release
 from recovery import arm_verified_update, recover
 
@@ -126,7 +127,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
             if self.headers.get('Transfer-Encoding'):
                 raise ValueError('Неподдерживаемый формат запроса')
             length = int(self.headers.get('Content-Length', '-1'))
-            if not 0 <= length <= 4096:
+            if not 0 <= length <= (32768 if self.path == '/api/chat' else 4096):
                 raise ValueError('Недопустимый размер запроса')
             body = self.rfile.read(length)
             if len(body) != length:
@@ -156,6 +157,13 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/chat':
+                    if set(payload) != {'messages'}:
+                        raise ValueError('Ожидается история сообщений')
+                    if not cloudru.has_key(data):
+                        return self.reply(400, {'error': 'Сначала сохраните API-ключ Cloud.ru'})
+                    result = cloud_chat.complete(data, payload['messages'])
+                    return self.reply(200, result)
                 if self.path == '/api/cloudru/key':
                     if set(payload) != {'key'} or not isinstance(payload['key'], str):
                         raise ValueError('Необходимо указать API-ключ')

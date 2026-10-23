@@ -39,6 +39,7 @@
   <nav aria-label="Основные разделы">
     <a class="nav-item active" href="#home" id="nav-home" aria-current="page" title="Главная"><svg><use href="#i-home"/></svg><span>Главная</span><span class="nav-active-mark"></span></a>
     <a class="nav-item" href="#settings" id="nav-settings" title="Настройки"><svg><use href="#i-settings"/></svg><span>Настройки</span></a>
+    <a class="nav-item" href="#chat" id="nav-chat" title="Чат"><svg><use href="#i-log"/></svg><span>Чат</span></a>
     <a class="nav-item" href="#tools" id="nav-tools" title="Инструменты"><svg><use href="#i-tools"/></svg><span>Инструменты</span></a>
     <a class="nav-item" href="#updates" id="nav-updates" title="Обновления"><svg><use href="#i-refresh"/></svg><span>Обновления</span></a>
   </nav>
@@ -101,6 +102,13 @@
         </section>
         <section class="panel settings-panel" aria-labelledby="startup-title"><div class="settings-intro"><span class="card-icon"><svg><use href="#i-clock"/></svg></span><div><h2 id="startup-title">Автозапуск Windows</h2><p>Применяется сразу, отдельно от настроек выше.</p></div></div><div class="field-row"><div><label for="startup-enabled">Запускать Sakuya при входе</label><p class="helper" id="startup-help">Проверка автозапуска…</p></div><label class="switch"><input id="startup-enabled" type="checkbox" aria-describedby="startup-help" disabled><span aria-hidden="true"></span></label></div></section>
       </div><aside class="settings-aside"><section class="panel system-panel"><span class="system-emblem"><svg><use href="#i-fox"/></svg></span><h2>Sakuya</h2><p>Личное пространство</p><dl><div><dt>Версия</dt><dd data-bind="version">…</dd></div><div><dt>Python</dt><dd id="about-python">…</dd></div><div><dt>Режим</dt><dd id="about-mode">…</dd></div><div><dt>Процесс</dt><dd id="about-pid">…</dd></div><div><dt>Адрес</dt><dd id="about-address">…</dd></div></dl><span class="system-label"><svg><use href="#i-shield"/></svg>Работает локально</span></section><section class="settings-tip"><span>✦</span><p>Предпочитаемый порт может быть занят. Sakuya выберет свободный и откроет правильный адрес.</p></section></aside></div>
+    </section>
+    <section id="page-chat" aria-labelledby="chat-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">SAKUYA И CLOUD.RU</p><h1 id="chat-title">Чат</h1></div><span class="heading-note" id="chat-model">Модель из настроек</span></div>
+      <article class="panel"><div id="chat-messages" class="chat-messages" aria-live="polite"><p class="helper">Задайте вопрос Sakuya. Для ответов используется выбранная модель Cloud.ru.</p></div>
+        <form id="chat-form" class="chat-form"><label for="chat-input">Сообщение</label><textarea id="chat-input" maxlength="4000" rows="3" placeholder="Напишите сообщение…" required></textarea><div class="chat-actions"><span class="helper" id="chat-status">Для отправки нужен ключ и выбранная модель Cloud.ru.</span><button class="button primary" id="chat-send" type="submit">Отправить</button><button class="button secondary" id="chat-clear" type="button">Очистить</button></div></form>
+      </article>
+      <p class="helper">Сообщения передаются в Cloud.ru для генерации ответа. История хранится только в открытой вкладке и не записывается в файлы.</p>
     </section>
     <section id="page-tools" aria-labelledby="tools-title" hidden>
       <div class="page-heading"><div><p class="eyebrow">ЛОКАЛЬНЫЕ ОПЕРАЦИИ</p><h1 id="tools-title">Инструменты</h1></div></div>
