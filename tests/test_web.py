@@ -144,10 +144,10 @@ class WebTests(unittest.TestCase):
     def test_update_prepare_arms_only_verified_candidate(self):
         from unittest.mock import patch
         good = 'a'*40
-        with patch.object(core.updater,'check_remote', return_value={'reachable': True, 'commit':good}), \\
-             patch.object(core,'stage_release') as stage, \\
-             patch.object(core,'verify_staged_release',return_value=True) as verify, \\
-             patch.object(core,'recover') as recover, \\
+        with patch.object(core.updater,'check_remote', return_value={'reachable': True, 'commit':good}), \
+             patch.object(core,'stage_release') as stage, \
+             patch.object(core,'verify_staged_release',return_value=True) as verify, \
+             patch.object(core,'recover') as recover, \
              patch.object(core,'arm_verified_update') as arm:
             with patch.dict(os.environ, {'SAKUYA_ROOT':str(self.data)}):
                 code, result = self.post('/api/update/prepare', {'commit':good})
