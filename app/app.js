@@ -530,7 +530,7 @@ async function loadDocuments(){
     }
     for(const item of response.documents){
       const row=document.createElement('div');row.className='document-entry';
-      const name=document.createElement('span');name.textContent=item.id+' · '+Math.ceil(item.bytes/1024)+' КиБ';
+      const name=document.createElement('span');name.textContent=(item.name||item.id)+' · '+Math.ceil(item.bytes/1024)+' КиБ';
       const preview=document.createElement('button');preview.type='button';preview.className='button secondary';preview.textContent='Текст';
       preview.onclick=async()=>{
         try{$('document-preview').textContent=(await api('/api/documents/preview',{id:item.id})).text;}
