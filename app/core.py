@@ -266,10 +266,17 @@ def create_server(data: Path, identity: str, session: str, token: str,
                             self.wfile.flush()
                         except (BrokenPipeError,ConnectionResetError):
                             logger.info('Поток Cloud.ru остановлен клиентом')
+                        except ValueError as exc:
+                            logger.warning('Cloud.ru отклонил потоковый запрос: %s', str(exc))
+                            try:
+                                self.wfile.write(json.dumps({'error':str(exc)},ensure_ascii=False).encode('utf-8')+b'\n')
+                                self.wfile.flush()
+                            except OSError:
+                                pass
                         except Exception:
                             logger.exception('Ошибка потоковой генерации')
                             try:
-                                self.wfile.write(json.dumps({'error':'Ошибка Cloud.ru, ответ не сохранён'},ensure_ascii=False).encode('utf-8')+b'\n')
+                                self.wfile.write(json.dumps({'error':'Ошибка соединения с Cloud.ru; ответ не сохранён'},ensure_ascii=False).encode('utf-8')+b'\n')
                                 self.wfile.flush()
                             except OSError:
                                 pass
