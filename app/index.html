@@ -142,6 +142,11 @@
         <article class="panel"><h2>Документы</h2><p>Открыть локальную папку документов Sakuya в проводнике Windows.</p><button class="button secondary" id="open-documents" disabled>Открыть документы</button></article>
         <article class="panel"><h2>Диагностика</h2><p>Просмотр журнала без выполнения произвольных команд.</p><button class="button secondary" id="tools-log" disabled>Открыть журнал</button></article>
       </div>
+      <article class="panel documents-panel"><h2>Файлы Sakuya</h2><p>Загрузка и просмотр локальных документов. Скрипты хранятся как текст и никогда не запускаются.</p>
+        <label for="document-upload">Добавить файл в документы</label><input type="file" id="document-upload" accept=".txt,.md,.csv,.json,.log,.py,.js,.css,.html,.docx,.pdf,.png,.jpg,.jpeg,.webp">
+        <button class="button primary" id="document-upload-button">Сохранить файл</button><div id="document-list" class="document-list" aria-live="polite"></div>
+        <p id="document-preview" class="document-preview" role="status"></p>
+      </article>
       <p class="helper">Операции ограничены разрешёнными действиями; ввод команд и произвольных путей отключён.</p>
     </section>
     <section id="page-updates" aria-labelledby="updates-title" hidden>
