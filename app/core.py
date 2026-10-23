@@ -112,7 +112,9 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 if path == '/api/documents':
                     return self.reply(200, {'documents': workspace.list_documents(data)})
                 if path == '/api/workspace/chats':
-                    return self.reply(200, {'chats': workspace.list_chats(data)})
+                    from urllib.parse import parse_qs
+                    term = parse_qs(urlsplit(self.path).query).get('q',[''])[0]
+                    return self.reply(200, {'chats': workspace.list_chats(data,term)})
                 if path == '/api/workspace/memories':
                     return self.reply(200, {'memories': workspace.list_memory(data)})
                 if path == '/api/workspace/status':
@@ -270,7 +272,8 @@ def create_server(data: Path, identity: str, session: str, token: str,
                             except OSError:
                                 pass
                         finally:
-                            chunks.close()
+                            if hasattr(chunks,'close'):
+                                chunks.close()
                     finally:
                         chat_lock.release()
                     return
