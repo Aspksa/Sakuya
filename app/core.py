@@ -105,6 +105,8 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         return self.reply(400, {'error': 'Сначала сохраните API-ключ'})
                     models = cloudru.fetch_models(data)
                     return self.reply(200, {'models': models, 'connected': True})
+                if path == '/api/documents':
+                    return self.reply(200, {'documents': workspace.list_documents(data)})
                 if path == '/api/workspace/chats':
                     return self.reply(200, {'chats': workspace.list_chats(data)})
                 if path == '/api/workspace/memories':
@@ -140,7 +142,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
             if self.headers.get('Transfer-Encoding'):
                 raise ValueError('Неподдерживаемый формат запроса')
             length = int(self.headers.get('Content-Length', '-1'))
-            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path in ('/api/chat','/api/chat/stream','/api/workspace/attachment') else 32768):
+            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path in ('/api/chat','/api/chat/stream','/api/workspace/attachment','/api/documents/upload') else 32768):
                 raise ValueError('Недопустимый размер запроса')
             body = self.rfile.read(length)
             if len(body) != length:
@@ -170,6 +172,19 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/documents/upload':
+                    if set(payload)!={'name','base64'}:
+                        raise ValueError('Укажите файл')
+                    return self.reply(200, workspace.save_document(data,payload['name'],payload['base64']))
+                if self.path == '/api/documents/delete':
+                    if set(payload)!={'id'}:
+                        raise ValueError('Нужен идентификатор документа')
+                    workspace.delete_document(data,payload['id'])
+                    return self.reply(200, {'deleted':True})
+                if self.path == '/api/documents/preview':
+                    if set(payload)!={'id'}:
+                        raise ValueError('Нужен идентификатор документа')
+                    return self.reply(200, {'text':workspace.document_preview(data,payload['id'])})
                 if self.path == '/api/workspace/backup':
                     if payload != {'confirm': True}:
                         raise ValueError('Подтвердите резервное копирование')
