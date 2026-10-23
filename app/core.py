@@ -258,7 +258,9 @@ def create_server(data: Path, identity: str, session: str, token: str,
                                 self.wfile.write(event)
                                 self.wfile.flush()
                             full=''.join(answer)
-                            if full and chat_id:
+                            if not full:
+                                raise ValueError('Модель не вернула текст')
+                            if chat_id:
                                 workspace.append_exchange(data,chat_id,history[-1]['content'],full)
                             self.wfile.write(json.dumps({'done':True,'model':model or cloudru.get_config(data)['model']}).encode()+b'\\n')
                             self.wfile.flush()
