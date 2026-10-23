@@ -38,6 +38,20 @@ class ChatTests(unittest.TestCase):
                 with self.subTest(messages=messages),self.assertRaises(ValueError):
                     cloud_chat.complete(Path("."),messages)
 
+    def test_long_assistant_and_large_history_are_compacted(self):
+        messages = [{"role":"assistant","content":"а"*16000}]
+        messages += [{"role":"user","content":"вопрос"*300},{"role":"assistant","content":"ответ"*300}]*12
+        messages.append({"role":"user","content":"Последний вопрос"})
+        compact = cloud_chat.compact_messages(messages)
+        self.assertEqual(compact[-1]["content"],"Последний вопрос")
+        self.assertLessEqual(sum(len(m["content"]) for m in compact), 12000)
+        self.assertLessEqual(len(compact),20)
+        self.assertTrue(all(len(m["content"]) <= 4000 for m in compact))
+
+    def test_invalid_large_user_message_is_rejected(self):
+        with self.assertRaises(ValueError):
+            cloud_chat.compact_messages([{"role":"user","content":"a"*4001}])
+
     def test_model_required(self):
         with patch.object(cloud_chat,"get_config",return_value={"model":""}):
             with self.assertRaises(ValueError):
