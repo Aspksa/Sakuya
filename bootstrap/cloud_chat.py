@@ -63,12 +63,17 @@ def complete(data, messages, opener=None):
     return {"answer":answer, "model":model, "truncated":False}
 
 
-def stream(data, messages, opener=None, model=None):
+def stream(data, messages, opener=None, model=None, system_context=None):
     """Yield OpenAI-compatible SSE text deltas; consumer controls cancellation."""
     selected = model or get_config(data)["model"]
     if not isinstance(selected, str) or not MODEL_RE.fullmatch(selected):
         raise ValueError("Выберите модель Cloud.ru")
-    body = json.dumps({"model": selected, "messages": compact_messages(messages),
+    history=compact_messages(messages)
+    if system_context:
+        if not isinstance(system_context,str) or len(system_context)>32000:
+            raise ValueError("Память превышает лимит контекста")
+        history=[{"role":"system","content":system_context}]+history
+    body = json.dumps({"model": selected, "messages": history,
                        "stream": True}, ensure_ascii=False).encode("utf-8")
     if len(body) > MAX_REQUEST_BYTES:
         raise ValueError("Размер запроса превышает технический предел")
