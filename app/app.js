@@ -138,8 +138,8 @@ function closeDrawer() {
 }
 
 function route() {
-  const page = ['home','settings','chat','tools','updates'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
-  const names = {home:'Главная',settings:'Настройки',chat:'Чат',tools:'Инструменты',updates:'Обновления'};
+  const page = ['home','settings','chat','memory','monitor','tools','updates'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+  const names = {home:'Главная',settings:'Настройки',chat:'Чат',memory:'Память',monitor:'Мониторинг',tools:'Инструменты',updates:'Обновления'};
   for (const key of Object.keys(names)) {
     $('page-' + key).hidden = key !== page;
     $('nav-' + key).classList.toggle('active', key === page);
@@ -149,6 +149,9 @@ function route() {
   document.title = 'Sakuya — ' + names[page];
   closeDrawer();
   if (page === 'updates') checkUpdates(false);
+  if (page === 'memory') loadMemories();
+  if (page === 'monitor') loadMonitor();
+  if (page === 'chat') loadChatList();
   window.scrollTo({top:0,behavior:'instant'});
 }
 async function checkUpdates(remote = false) {
@@ -328,50 +331,170 @@ $('cloudru-delete').addEventListener('click',async () => {
   } catch (error) { toast(error.message,true); }
 });
 loadCloudru();
-function addChatMessage(role, content) {
-  const item = document.createElement('div');
-  item.className = 'chat-message ' + role;
-  const heading = document.createElement('strong');
-  heading.textContent = role === 'user' ? 'Вы' : 'Sakuya';
-  const message = document.createElement('p');
-  message.textContent = content;
-  item.append(heading, message);
-  $('chat-messages').append(item);
-  const container = $('chat-messages');
-  container.scrollTop = container.scrollHeight;
-}
-$('chat-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  const value = $('chat-input').value.trim();
-  if (chatBusy || !value) return;
-  const latest = {role:'user', content:value};
-  const messages = [...chatHistory, latest];
-  const compact = messages;
-  chatBusy = true;
-  $('chat-send').disabled = true;
-  $('chat-status').textContent = 'Sakuya формирует ответ…';
+let currentChatId = null;
+let chatAbort = null;
+let activeChatModel = '';
+async function loadChatList() {
   try {
-    const response = await api('/api/chat', {messages:compact});
+    const term = $('chat-search').value.trim();
+    const result = await api('/api/workspace/chats');
+    const chats = result.chats.filter(item => !term || item.title.toLowerCase().includes(term.toLowerCase()));
+    const list = $('chat-list'); list.replaceChildren();
+    for (const chat of chats) {
+      const button=document.createElement('button');
+      button.type='button'; button.className='chat-history-entry'+(chat.id===currentChatId?' selected':'');
+      button.textContent=chat.title; button.title=chat.title;
+      button.onclick=()=>openChat(chat.id);
+      list.append(button);
+    }
+  } catch(error) { $('chat-status').textContent='История: '+error.message; }
+}
+async function openChat(id) {
+  if(chatBusy) return toast('Сначала завершите генерацию.',true);
+  try {
+    const result=await api('/api/workspace/chat?id='+encodeURIComponent(id));
+    currentChatId=id; chatHistory=result.messages;
+    $('chat-messages').replaceChildren();
+    for(const item of chatHistory) addChatMessage(item.role,item.content);
+    $('chat-status').textContent='Локальная история загружена.';
+    await loadChatList();
+  } catch(error) { toast(error.message,true); }
+}
+async function newChat() {
+  if(chatBusy) return toast('Сначала завершите генерацию.',true);
+  try {
+    const created=await api('/api/workspace/create',{title:'Новый диалог'});
+    await openChat(created.id);
+  } catch(error) { toast(error.message,true); }
+}
+function addChatMessage(role,content) {
+  const item=document.createElement('div');item.className='chat-message '+role;
+  const heading=document.createElement('strong');heading.textContent=role==='user'?'Вы':'Sakuya';
+  const message=document.createElement('p');message.textContent=content;
+  item.append(heading,message);$('chat-messages').append(item);
+  $('chat-messages').scrollTop=$('chat-messages').scrollHeight;
+  return message;
+}
+$('chat-new').onclick=newChat;
+$('chat-clear').onclick=newChat;
+$('chat-search').addEventListener('input',loadChatList);
+$('chat-rename').onclick=async()=>{
+  if(!currentChatId||chatBusy)return;
+  const title=prompt('Новое название диалога:');
+  if(!title)return;
+  try{await api('/api/workspace/rename',{id:currentChatId,title});await loadChatList();}
+  catch(error){toast(error.message,true);}
+};
+$('chat-delete').onclick=async()=>{
+  if(!currentChatId||chatBusy||!confirm('Удалить диалог и всю его историю?'))return;
+  try{await api('/api/workspace/delete',{id:currentChatId});currentChatId=null;chatHistory=[];$('chat-messages').replaceChildren();await loadChatList();}
+  catch(error){toast(error.message,true);}
+};
+$('chat-file').addEventListener('change',()=>{
+  const file=$('chat-file').files[0];
+  $('chat-file-info').textContent=file?file.name+' · '+Math.ceil(file.size/1024)+' КиБ':'Прикрепите текстовый файл до 2 МиБ';
+});
+async function textAttachment(file) {
+  if(file.size>2*1024*1024)throw new Error('Файл превышает 2 МиБ');
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let binary='';for(let i=0;i<bytes.length;i+=8192){binary+=String.fromCharCode(...bytes.subarray(i,i+8192));}
+  const result=await api('/api/workspace/attachment',{name:file.name,base64:btoa(binary)});
+  return result.text;
+}
+$('chat-reload-models').onclick=async()=>{
+  $('chat-reload-models').disabled=true;
+  try {
+    const [available,saved]=await Promise.all([api('/api/cloudru/models'),api('/api/cloudru/status')]);
+    const select=$('chat-select-model');select.replaceChildren();
+    for(const name of available.models){const option=document.createElement('option');option.value=name;option.textContent=name;select.append(option);}
+    if(available.models.includes(saved.model))select.value=saved.model;
+    activeChatModel=select.value;
+    $('chat-status').textContent='Моделей доступно: '+available.models.length;
+  }catch(error){toast(error.message,true);}
+  finally{$('chat-reload-models').disabled=false;}
+};
+$('chat-select-model').onchange=async()=>{
+  try{
+    await api('/api/cloudru/model',{model:$('chat-select-model').value});
+    activeChatModel=$('chat-select-model').value;
+    toast('Модель сохранена.');
+  }catch(error){toast(error.message,true);}
+};
+$('chat-stop').onclick=()=>{if(chatAbort)chatAbort.abort();};
+$('chat-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(chatBusy||!online)return;
+  const plain=$('chat-input').value.trim();
+  const file=$('chat-file').files[0];
+  if(!plain&&!file)return;
+  chatBusy=true;$('chat-send').disabled=true;$('chat-stop').disabled=false;
+  $('chat-status').textContent='Подготовка запроса…';
+  let partial=null, answer='';
+  try {
+    if(!currentChatId){const created=await api('/api/workspace/create',{title:'Новый диалог'});currentChatId=created.id;}
+    let value=plain;
+    if(file)value+=(value?'\n\n':'')+await textAttachment(file);
+    const user={role:'user',content:value};
+    const history=[...chatHistory,user];
+    chatAbort=new AbortController();
+    // Use a streaming response so words appear as the provider generates them.
+    const response=await fetch('/api/chat/stream',{
+      method:'POST',cache:'no-store',signal:chatAbort.signal,
+      headers:{'Content-Type':'application/json','X-Sakuya-CSRF':csrf},
+      body:JSON.stringify({messages:history,chat_id:currentChatId,model:activeChatModel||undefined})
+    });
+    if(!response.ok){
+      const failure=await response.json();throw new Error(failure.error||'Ошибка запроса');
+    }
     addChatMessage('user',value);
-    addChatMessage('assistant',response.answer);
-    chatHistory = [...compact,{role:'assistant',content:response.answer}];
-    $('chat-input').value = '';
-    $('chat-model').textContent = response.model;
-    $('chat-status').textContent = 'Готово';
-  } catch (error) {
-    $('chat-status').textContent = 'Не отправлено: ' + error.message + '. Текст сохранён для повторной отправки.';
-    toast(error.message,true);
-  } finally {
-    chatBusy = false;
-    $('chat-send').disabled = !online;
-  }
+    partial=addChatMessage('assistant','');
+    const reader=response.body.getReader(), decoder=new TextDecoder();
+    let buffer='',done=false;
+    while(!done){
+      const packet=await reader.read();done=packet.done;
+      buffer+=decoder.decode(packet.value||new Uint8Array(),{stream:!done});
+      let newline;
+      while((newline=buffer.indexOf('\n'))>=0){
+        const line=buffer.slice(0,newline).trim();buffer=buffer.slice(newline+1);
+        if(!line)continue;
+        const item=JSON.parse(line);
+        if(item.error)throw new Error(item.error);
+        if(item.delta){answer+=item.delta;partial.textContent=answer;$('chat-messages').scrollTop=$('chat-messages').scrollHeight;}
+        if(item.done){chatHistory=[...history,{role:'assistant',content:answer}];$('chat-input').value='';$('chat-file').value='';$('chat-file-info').textContent='';$('chat-status').textContent='Ответ сохранён локально.';}
+      }
+    }
+    await loadChatList();
+  }catch(error){
+    $('chat-status').textContent=error.name==='AbortError'?'Генерация остановлена. Неполный ответ не сохранён.':'Ошибка генерации: '+error.message;
+    if(partial)partial.textContent=answer||'[Ответ не получен]';
+    if(error.name!=='AbortError')toast(error.message,true);
+    // Reload the authoritative server history to avoid duplicated partial turns.
+    if(currentChatId){try{const result=await api('/api/workspace/chat?id='+currentChatId);chatHistory=result.messages;}catch{}}
+  }finally{chatBusy=false;chatAbort=null;$('chat-send').disabled=!online;$('chat-stop').disabled=true;}
 });
-$('chat-clear').addEventListener('click', () => {
-  if (chatBusy) return toast('Дождитесь завершения запроса.',true);
-  chatHistory = [];
-  $('chat-messages').replaceChildren();
-  $('chat-status').textContent = 'История этой вкладки очищена.';
-});
+async function loadMemories(){
+  try{
+    const response=await api('/api/workspace/memories');const list=$('memory-list');list.replaceChildren();
+    for(const item of response.memories){
+      const card=document.createElement('div');card.className='memory-entry';
+      const p=document.createElement('p');p.textContent=item.content;
+      const button=document.createElement('button');button.className='button secondary';button.textContent='Удалить';
+      button.onclick=async()=>{if(!confirm('Удалить запись?'))return;await api('/api/workspace/memory/delete',{id:item.id});await loadMemories();};
+      card.append(p,button);list.append(card);
+    }
+  }catch(error){toast(error.message,true);}
+}
+$('memory-form').onsubmit=async event=>{
+  event.preventDefault();try{await api('/api/workspace/memory/add',{content:$('memory-text').value});$('memory-text').value='';await loadMemories();}
+  catch(error){toast(error.message,true);}
+};
+async function loadMonitor(){
+  try{
+    const result=await api('/api/workspace/status');
+    $('monitor-content').textContent='Диалогов: '+result.chats+' · Сообщений: '+result.messages+' · Записей памяти: '+result.memories+' · База: '+Math.ceil(result.database_bytes/1024)+' КиБ';
+  }catch(error){$('monitor-content').textContent=error.message;}
+}
+$('monitor-refresh').onclick=loadMonitor;
 document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
 route(); refresh();
 setInterval(() => { if (!document.hidden) refresh(); },5000);
