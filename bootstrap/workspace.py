@@ -5,6 +5,8 @@ SAKUYA_DATA_DIR and excluded from code releases and GitHub.
 """
 from __future__ import annotations
 import base64
+import os
+import platform
 from contextlib import contextmanager
 import io
 import json
@@ -186,3 +188,61 @@ def status(data: Path) -> dict:
         memories=db.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
     return {"chats":chats,"messages":messages,"memories":memories,
             "database_bytes":(data/"workspace.sqlite3").stat().st_size}
+
+
+def backup(data: Path) -> dict:
+    """Online consistent SQLite snapshot; never overwrites previous backups."""
+    archive = data / "backups"
+    archive.mkdir(parents=True,exist_ok=True)
+    name="workspace-"+time.strftime("%Y%m%d-%H%M%S")+"-"+uuid.uuid4().hex[:8]+".sqlite3"
+    target=archive/name
+    with database(data) as source:
+        with sqlite3.connect(str(target)) as destination:
+            source.backup(destination)
+    return {"name":name,"size":target.stat().st_size}
+
+
+def system_status() -> dict:
+    """Best-effort process metrics without third-party packages."""
+    result={"python":platform.python_version(),"platform":platform.system(),
+            "pid":os.getpid(),"cpu_count":os.cpu_count() or 1}
+    if os.name=="nt":
+        import ctypes
+        class Memory(ctypes.Structure):
+            _fields_=[("length",ctypes.c_ulong),("load",ctypes.c_ulong),
+                      ("total_phys",ctypes.c_ulonglong),("avail_phys",ctypes.c_ulonglong),
+                      ("total_page",ctypes.c_ulonglong),("avail_page",ctypes.c_ulonglong),
+                      ("total_virtual",ctypes.c_ulonglong),("avail_virtual",ctypes.c_ulonglong),
+                      ("avail_extended",ctypes.c_ulonglong)]
+        state=Memory();state.length=ctypes.sizeof(Memory)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(state)):
+            result["ram_total_bytes"]=state.total_phys
+            result["ram_available_bytes"]=state.avail_phys
+        import ctypes.wintypes
+        process=ctypes.windll.kernel32.GetCurrentProcess()
+        class Counters(ctypes.Structure):
+            _fields_=[("cb",ctypes.wintypes.DWORD),
+                ("PageFaultCount",ctypes.wintypes.DWORD),
+                ("PeakWorkingSetSize",ctypes.c_size_t),
+                ("WorkingSetSize",ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage",ctypes.c_size_t),
+                ("QuotaPagedPoolUsage",ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage",ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage",ctypes.c_size_t),
+                ("PagefileUsage",ctypes.c_size_t),
+                ("PeakPagefileUsage",ctypes.c_size_t)]
+        counters=Counters();counters.cb=ctypes.sizeof(Counters)
+        if ctypes.windll.psapi.GetProcessMemoryInfo(process,ctypes.byref(counters),counters.cb):
+            result["process_ram_bytes"]=counters.WorkingSetSize
+    else:
+        try:
+            import resource
+            usage=resource.getrusage(resource.RUSAGE_SELF)
+            result["cpu_seconds"]=round(usage.ru_utime+usage.ru_stime,2)
+        except ImportError:
+            pass
+        try:
+            result["load_average"]=list(os.getloadavg())
+        except OSError:
+            pass
+    return result
