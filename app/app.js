@@ -340,20 +340,29 @@ $('chat-form').addEventListener('submit', async event => {
   const value = $('chat-input').value.trim();
   if (chatBusy || !value) return;
   if (value.length > 4000) return toast('Сообщение слишком длинное.', true);
-  const messages = [...chatHistory.slice(-18), {role:'user', content:value}];
+  const latest = {role:'user', content:value};
+  const messages = [...chatHistory, latest];
+  // Keep the browser payload under the 32 KiB HTTP cap and 12K-char context.
+  let budget = 12000, compact = [];
+  for (const entry of messages.slice(-100).reverse()) {
+    const content = entry.role === 'assistant' ? entry.content.slice(0,4000) : entry.content;
+    if (compact.length >= 20 || content.length > budget) break;
+    compact.push({role:entry.role,content}); budget -= content.length;
+  }
+  compact.reverse();
   chatBusy = true;
   $('chat-send').disabled = true;
   $('chat-status').textContent = 'Sakuya формирует ответ…';
   try {
-    const response = await api('/api/chat', {messages});
+    const response = await api('/api/chat', {messages:compact});
     addChatMessage('user',value);
     addChatMessage('assistant',response.answer);
-    chatHistory = [...messages,{role:'assistant',content:response.answer}].slice(-20);
+    chatHistory = [...compact,{role:'assistant',content:response.answer.slice(0,4000)}].slice(-20);
     $('chat-input').value = '';
     $('chat-model').textContent = response.model;
     $('chat-status').textContent = 'Готово';
   } catch (error) {
-    $('chat-status').textContent = error.message;
+    $('chat-status').textContent = 'Не отправлено: ' + error.message + '. Текст сохранён для повторной отправки.';
     toast(error.message,true);
   } finally {
     chatBusy = false;
@@ -361,6 +370,7 @@ $('chat-form').addEventListener('submit', async event => {
   }
 });
 $('chat-clear').addEventListener('click', () => {
+  if (chatBusy) return toast('Дождитесь завершения запроса.',true);
   chatHistory = [];
   $('chat-messages').replaceChildren();
   $('chat-status').textContent = 'История этой вкладки очищена.';
