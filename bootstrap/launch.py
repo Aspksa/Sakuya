@@ -38,6 +38,10 @@ def console(show: bool):
     user.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
     window = kernel.GetConsoleWindow()
     if show and not window:
+        # Keep intentionally redirected output intact. pythonw has no stdout and
+        # needs a new console; a pipe or log file must retain the error message.
+        if sys.stdout is not None and not sys.stdout.isatty():
+            return
         kernel.AllocConsole()
         window = kernel.GetConsoleWindow()
         sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)
@@ -113,6 +117,7 @@ def run(mode="normal", autostart=False):
     hidden = False
     core = None
     previous_handlers = {}
+    result = 0
     advice = messages["console"]["help_instance"]
     try:
         display.begin(messages["console"]["stage_instance"])
@@ -216,7 +221,6 @@ def run(mode="normal", autostart=False):
                 hidden = False
                 logger.warning(messages["fallback"])
                 tray = None
-        return 0
     except (Exception, KeyboardInterrupt) as exc:
         console(True)
         display.refresh()
@@ -225,7 +229,7 @@ def run(mode="normal", autostart=False):
             advice = messages["console"]["help_permission"]
         display.error(exc, advice, data / "logs/sakuya.log")
         logger.exception("%s. %s: %s", messages["error"], messages["log"], data / "logs/sakuya.log", extra={"file_only": True})
-        return 1
+        result = 1
     finally:
         try:
             stop.set()
@@ -257,7 +261,7 @@ def run(mode="normal", autostart=False):
             display.error(exc, messages["console"]["help_permission"] if isinstance(exc, PermissionError)
                           else messages["console"]["help_unknown"], data / "logs/sakuya.log")
             logger.exception("Ошибка завершения Sakuya", extra={"file_only": True})
-            return 1
+            result = 1
         finally:
             for sig, handler in previous_handlers.items():
                 signal.signal(sig, handler)
@@ -266,6 +270,7 @@ def run(mode="normal", autostart=False):
             if hidden:
                 console(True)
             display.close()
+    return result
 
 
 if __name__ == "__main__":
