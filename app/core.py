@@ -17,7 +17,11 @@ import startup
 import updater
 import cloudru
 import cloud_chat
-import workspace
+import importlib.util
+_workspace_spec = importlib.util.spec_from_file_location(
+    "sakuya_workspace", Path(__file__).with_name("workspace.py"))
+workspace = importlib.util.module_from_spec(_workspace_spec)
+_workspace_spec.loader.exec_module(workspace)
 from release_stage import HEX40, stage_release, verify_staged_release
 from recovery import arm_verified_update, recover
 
