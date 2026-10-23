@@ -278,7 +278,7 @@ def system_status() -> dict:
     return result
 
 
-DOCUMENT_ID=re.compile(r"^[0-9a-f]{32}\\.[a-z0-9]{1,8}$")
+DOCUMENT_ID=re.compile(r"^[0-9a-f]{32}\.[a-z0-9]{1,8}$")
 DOCUMENT_EXT={".txt",".md",".json",".csv",".log",".py",".js",".css",".html",".docx",".pdf",".png",".jpg",".jpeg",".webp"}
 
 
