@@ -1,4 +1,4 @@
-"""Minimal local application. No third-party runtime dependencies."""
+"""Local Sakuya application and authenticated browser settings. Standard library only."""
 from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -6,8 +6,18 @@ import hmac
 import json
 import os
 from pathlib import Path
+import secrets
+import sys
 import threading
-from common import APP_ID, APP_NAME, atomic_json
+import time
+from urllib.parse import urlsplit
+from common import APP_ID, APP_NAME, APP_VERSION, atomic_json
+import startup
+
+ASSETS = {'/': ('index.html', 'text/html; charset=utf-8'),
+          '/assets/app.css': ('app.css', 'text/css; charset=utf-8'),
+          '/assets/app.js': ('app.js', 'text/javascript; charset=utf-8'),
+          '/favicon.svg': ('favicon.svg', 'image/svg+xml')}
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -16,64 +26,170 @@ class LocalServer(ThreadingHTTPServer):
 
 
 def create_server(data: Path, identity: str, session: str, token: str,
-                  stop: threading.Event, settings: dict, logger):
+                  stop: threading.Event, settings: dict, logger, runtime=None):
+    csrf = secrets.token_urlsafe(32)
+    settings_lock = threading.RLock()
+    startup_lock = threading.Lock()
+    started = time.monotonic()
+    runtime = runtime if runtime is not None else {'mode': 'normal', 'tray': 'unavailable'}
+
+    def snapshot():
+        with settings_lock:
+            current = {key: settings[key] for key in ('port', 'autostart_browser')}
+        return {'app': APP_NAME, 'version': APP_VERSION, 'session': session, 'pid': os.getpid(),
+                'ready': not stop.is_set(), 'url': f'http://127.0.0.1:{server.server_port}',
+                'uptime_seconds': int(time.monotonic() - started), 'mode': runtime.get('mode', 'normal'),
+                'tray': runtime.get('tray', 'unavailable'), 'python_version': sys.version.split()[0],
+                'python_executable': sys.executable, 'data_directory': str(data),
+                'settings': current, 'startup': startup.status(),
+                'capabilities': {'open_folder': os.name == 'nt', 'open_log': os.name == 'nt'}}
+
     class Handler(BaseHTTPRequestHandler):
-        protocol_version = "HTTP/1.0"
+        protocol_version = 'HTTP/1.0'
 
         def setup(self):
             super().setup()
             self.connection.settimeout(3)
 
-        def reply(self, code, value, content_type="application/json; charset=utf-8"):
+        def reply(self, code, value, content_type='application/json; charset=utf-8'):
             body = json.dumps(value, ensure_ascii=False).encode() if not isinstance(value, bytes) else value
             self.send_response(code)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('Referrer-Policy', 'no-referrer')
+            self.send_header('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
             self.end_headers()
             self.wfile.write(body)
 
         def valid_host(self):
-            return self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}"
+            return self.headers.get('Host') == f'127.0.0.1:{self.server.server_port}'
 
         def do_GET(self):
             if not self.valid_host():
-                return self.reply(403, {"error": "Invalid host"})
-            if self.path == "/api/health":
-                return self.reply(200, {"app": APP_NAME, "app_id": APP_ID, "instance_id": identity,
-                                       "session": session, "pid": os.getpid(), "ready": not stop.is_set()})
-            if self.path == "/":
-                return self.reply(200, (Path(__file__).parent / "index.html").read_bytes(), "text/html; charset=utf-8")
-            self.reply(404, {"error": "Not found"})
+                return self.reply(403, {'error': 'Недопустимый адрес запроса'})
+            path = urlsplit(self.path).path
+            try:
+                if path == '/api/health':
+                    return self.reply(200, {'app': APP_NAME, 'app_id': APP_ID, 'instance_id': identity,
+                                           'session': session, 'pid': os.getpid(), 'ready': not stop.is_set()})
+                if path in ASSETS:
+                    file, mime = ASSETS[path]
+                    return self.reply(200, (Path(__file__).parent / file).read_bytes(), mime)
+                if path == '/api/bootstrap':
+                    return self.reply(200, dict(snapshot(), csrf=csrf))
+                if path == '/api/status':
+                    return self.reply(200, snapshot())
+                if path == '/api/logs':
+                    log = data / 'logs/sakuya.log'
+                    if log.exists():
+                        with log.open('rb') as stream:
+                            stream.seek(max(0, log.stat().st_size - 32768))
+                            text = stream.read().decode('utf-8', errors='replace')
+                        lines = text.splitlines()[-80:]
+                    else:
+                        lines = []
+                    return self.reply(200, {'lines': lines, 'path': str(log)})
+                self.reply(404, {'error': 'Страница не найдена'})
+            except Exception:
+                logger.exception('Ошибка чтения локального интерфейса')
+                self.reply(500, {'error': 'Не удалось прочитать данные. Подробности — в журнале Sakuya.'})
+
+        def read_body(self):
+            if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
+                raise ValueError('Ожидается JSON-запрос')
+            if self.headers.get('Transfer-Encoding'):
+                raise ValueError('Неподдерживаемый формат запроса')
+            length = int(self.headers.get('Content-Length', '-1'))
+            if not 0 <= length <= 4096:
+                raise ValueError('Недопустимый размер запроса')
+            body = self.rfile.read(length)
+            if len(body) != length:
+                raise ValueError('Запрос передан не полностью')
+            result = json.loads(body)
+            if not isinstance(result, dict):
+                raise ValueError('Ожидается объект с настройками')
+            return result
 
         def do_POST(self):
-            if (not self.valid_host() or self.headers.get("Origin") is not None
-                    or not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + token)):
-                return self.reply(403, {"error": "Forbidden"})
-            if self.path == "/api/shutdown":
-                self.reply(200, {"stopping": True})
+            if not self.valid_host():
+                return self.reply(403, {'error': 'Недопустимый адрес запроса'})
+            if self.path == '/api/shutdown':
+                # Native tray authorization is separate from browser sessions.
+                if (self.headers.get('Origin') is not None or
+                        not hmac.compare_digest(self.headers.get('Authorization', '').encode(), ('Bearer ' + token).encode())):
+                    return self.reply(403, {'error': 'Forbidden'})
+                self.reply(200, {'stopping': True})
                 stop.set()
-            else:
-                self.reply(404, {"error": "Not found"})
+                return
+            expected_origin = f'http://127.0.0.1:{self.server.server_port}'
+            if (self.headers.get('Origin') != expected_origin or
+                    self.headers.get('Sec-Fetch-Site', 'same-origin') != 'same-origin' or
+                    not hmac.compare_digest(self.headers.get('X-Sakuya-CSRF', '').encode(), csrf.encode())):
+                return self.reply(403, {'error': 'Сессия недействительна. Обновите страницу и повторите действие.'})
+            if stop.is_set():
+                return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
+            try:
+                payload = self.read_body()
+                if self.path == '/api/settings':
+                    if set(payload) != {'port', 'autostart_browser'}:
+                        raise ValueError('Нужны поля port и autostart_browser')
+                    if type(payload['port']) is not int or not 0 <= payload['port'] <= 65535:
+                        raise ValueError('Порт должен быть целым числом от 0 до 65535')
+                    if type(payload['autostart_browser']) is not bool:
+                        raise ValueError('Настройка браузера должна быть true или false')
+                    with settings_lock:
+                        updated = dict(settings, **payload)
+                        save(data, updated)
+                        settings.clear()
+                        settings.update(updated)
+                    logger.info('Настройки запуска сохранены')
+                    return self.reply(200, {'settings': {key: updated[key] for key in ('port', 'autostart_browser')}, 'restart_required': True})
+                if self.path == '/api/startup':
+                    if set(payload) != {'enabled'} or type(payload['enabled']) is not bool:
+                        raise ValueError('Нужно поле enabled: true или false')
+                    if os.name != 'nt':
+                        return self.reply(501, {'error': 'Автозапуск доступен в Windows'})
+                    with startup_lock:
+                        startup.configure('enable' if payload['enabled'] else 'disable', quiet=True)
+                        result = startup.status()
+                    logger.info('Автозапуск Windows: %s', result['enabled'])
+                    return self.reply(200, {'startup': result})
+                if self.path == '/api/open':
+                    target = payload.get('target')
+                    if set(payload) != {'target'} or target not in ('data', 'log'):
+                        raise ValueError('Неизвестная папка или файл')
+                    if os.name != 'nt':
+                        return self.reply(501, {'error': 'Открытие папки и файла доступно в Windows'})
+                    path = data if target == 'data' else data / 'logs/sakuya.log'
+                    os.startfile(str(path))
+                    return self.reply(200, {'opened': target})
+                self.reply(404, {'error': 'Действие не найдено'})
+            except (ValueError, UnicodeError) as exc:
+                self.reply(400, {'error': str(exc)})
+            except Exception:
+                logger.exception('Ошибка действия в локальном интерфейсе')
+                self.reply(500, {'error': 'Не удалось выполнить действие. Проверьте доступ к файлам и журнал Sakuya.'})
 
         def log_message(self, fmt, *args):
-            logger.debug("HTTP " + fmt, *args)
+            logger.debug('HTTP ' + fmt, *args)
 
-    preferred = settings.get("port", 0)
-    if not isinstance(preferred, int) or not 0 <= preferred <= 65535:
-        raise ValueError("Некорректный порт в settings.json")
+    preferred = settings.get('port', 0)
+    if type(preferred) is not int or not 0 <= preferred <= 65535:
+        raise ValueError('Некорректный порт в settings.json')
     try:
-        server = LocalServer(("127.0.0.1", preferred), Handler)
+        server = LocalServer(('127.0.0.1', preferred), Handler)
     except OSError as exc:
         import errno
-        if not preferred or (exc.errno != errno.EADDRINUSE and getattr(exc, "winerror", None) != 10048):
+        if not preferred or (exc.errno != errno.EADDRINUSE and getattr(exc, 'winerror', None) != 10048):
             raise
-        logger.info("Порт %s занят, выбираю свободный", preferred)
-        server = LocalServer(("127.0.0.1", 0), Handler)
+        logger.info('Порт %s занят, выбираю свободный', preferred)
+        server = LocalServer(('127.0.0.1', 0), Handler)
+    server.settings_lock = settings_lock
+    server.runtime = runtime
     return server
 
 
 def save(data: Path, settings: dict):
-    atomic_json(data / "settings.json", settings)
+    atomic_json(data / 'settings.json', settings)

@@ -1,0 +1,1 @@
+{"name":"sakuya-local","private":true,"scripts":{"dev":"python3 scripts/preview.py"}}

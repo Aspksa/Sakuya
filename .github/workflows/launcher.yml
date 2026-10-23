@@ -24,5 +24,7 @@ jobs:
             [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
             if ($errors) { throw ($errors | Out-String) }
           }
+      - name: JavaScript syntax
+        run: node --check app/app.js
       - name: Process and recovery checks
         run: python -X utf8 -m unittest discover -s tests -v
