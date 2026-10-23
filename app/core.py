@@ -220,7 +220,10 @@ def create_server(data: Path, identity: str, session: str, token: str,
                     if not chat_lock.acquire(blocking=False):
                         return self.reply(429, {'error':'Предыдущая генерация ещё выполняется'})
                     try:
-                        chunks=cloud_chat.stream(data,history,model=model)
+                        notes = workspace.list_memory(data) if payload.get('use_memory') else []
+                        memory_text = '\\n'.join(note['content'] for note in notes[:50])[:32000]
+                        chunks=cloud_chat.stream(data,history,model=model,
+                                                 system_context=memory_text or None)
                         self.send_response(200)
                         self.send_header('Content-Type','application/x-ndjson; charset=utf-8')
                         self.send_header('Cache-Control','no-store')
