@@ -118,6 +118,19 @@ def fetch_models(data: Path, opener=None) -> list[str]:
     result = json.loads(raw)
     if not isinstance(result, dict) or not isinstance(result.get("data"), list):
         raise ValueError("Некорректный ответ моделей Cloud.ru")
-    return sorted({row["id"] for row in result["data"]
-                   if isinstance(row, dict) and isinstance(row.get("id"), str)
-                   and MODEL_RE.fullmatch(row["id"])})[:300]
+    excluded = ("embedding", "rerank", "whisper", "speech", "ocr", "image", "vision-only")
+    models = set()
+    for row in result["data"]:
+        if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+            continue
+        identifier = row["id"]
+        if not MODEL_RE.fullmatch(identifier):
+            continue
+        metadata = row.get("metadata")
+        kind = metadata.get("type", "") if isinstance(metadata, dict) else ""
+        if isinstance(kind, str) and any(word in kind.lower() for word in excluded):
+            continue
+        if any(word in identifier.lower() for word in excluded):
+            continue
+        models.add(identifier)
+    return sorted(models)[:300]

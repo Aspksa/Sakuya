@@ -39,6 +39,16 @@ class CloudruTests(unittest.TestCase):
         with patch.object(cloudru, "load_key", return_value="secret-key"):
             self.assertEqual(cloudru.fetch_models(self.data, opener), ["model-2","test/model"])
 
+    def test_non_chat_models_are_filtered(self):
+        def opener(request, timeout):
+            return Response(json.dumps({"data":[
+                {"id":"openai/gpt-oss-120b","metadata":{"type":"LLM"}},
+                {"id":"openai/whisper-large-v3","metadata":{"type":"Audio-to-Text"}},
+                {"id":"BAAI/bge-reranker-v2-m3","metadata":{"type":"Rerank"}}
+            ]}).encode())
+        with patch.object(cloudru,"load_key",return_value="secret-key"):
+            self.assertEqual(cloudru.fetch_models(self.data,opener),["openai/gpt-oss-120b"])
+
     def test_no_key_in_configuration(self):
         cloudru.set_model(self.data,"test/model")
         self.assertEqual(cloudru.get_config(self.data)["model"],"test/model")

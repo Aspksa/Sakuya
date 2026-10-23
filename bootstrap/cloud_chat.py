@@ -4,24 +4,43 @@ import urllib.error
 import urllib.request
 from cloudru import BASE, MODEL_RE, get_config, load_key
 
+MAX_MESSAGE = 4000
+MAX_HISTORY = 12000
+MAX_ITEMS = 20
+
+def compact_messages(messages):
+    """Preserve recent dialog within local limits."""
+    if not isinstance(messages, list) or not 1 <= len(messages) <= 100:
+        raise ValueError("Недопустимая история диалога")
+    checked = []
+    for item in messages:
+        if not isinstance(item, dict) or set(item) != {"role", "content"} or item["role"] not in ("user", "assistant"):
+            raise ValueError("Недопустимое сообщение")
+        value = item["content"]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("Пустое сообщение")
+        if len(value) > MAX_MESSAGE:
+            if item["role"] == "user":
+                raise ValueError("Сообщение превышает 4000 символов")
+            value = value[:MAX_MESSAGE]
+        checked.append({"role": item["role"], "content": value})
+    if checked[-1]["role"] != "user":
+        raise ValueError("Последнее сообщение должно быть от пользователя")
+    result, size = [], 0
+    for item in reversed(checked):
+        length = len(item["content"])
+        if len(result) >= MAX_ITEMS or size + length > MAX_HISTORY:
+            break
+        result.append(item)
+        size += length
+    return list(reversed(result))
+
+
 def complete(data, messages, opener=None):
     model = get_config(data)["model"]
     if not model or not MODEL_RE.fullmatch(model):
         raise ValueError("Выберите модель Cloud.ru в настройках")
-    if not isinstance(messages, list) or not 1 <= len(messages) <= 20:
-        raise ValueError("Недопустимая история диалога")
-    validated = []
-    total = 0
-    for item in messages:
-        if not isinstance(item, dict) or set(item) != {"role", "content"} or item["role"] not in ("user", "assistant"):
-            raise ValueError("Недопустимое сообщение")
-        content = item["content"]
-        if not isinstance(content, str) or not content.strip() or len(content) > 4000:
-            raise ValueError("Сообщение слишком длинное или пустое")
-        total += len(content)
-        validated.append({"role": item["role"], "content": content})
-    if total > 12000 or validated[-1]["role"] != "user":
-        raise ValueError("Недопустимый контекст диалога")
+    validated = compact_messages(messages)
     payload = json.dumps({"model":model, "messages":validated, "stream":False,
                           "max_completion_tokens":1024},ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(BASE + "/chat/completions", data=payload, method="POST",
@@ -51,4 +70,4 @@ def complete(data, messages, opener=None):
     answer = msg.get("content") if isinstance(msg,dict) else None
     if not isinstance(answer,str) or not answer.strip():
         raise ValueError("Модель не вернула текст")
-    return {"answer":answer[:16000], "model":model}
+    return {"answer":answer[:16000], "model":model, "truncated":len(answer) > 16000}

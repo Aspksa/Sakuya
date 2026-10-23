@@ -190,6 +190,15 @@ class WebTests(unittest.TestCase):
         self.assertEqual(status['model'],'test/model')
         self.assertNotIn('key',status)
 
+    def test_chat_accepts_large_utf8_body_within_safe_limit(self):
+        with patch.object(core.cloudru, 'has_key', return_value=True), \
+             patch.object(core.cloud_chat, 'complete', return_value={'answer':'OK','model':'test'}) as complete:
+            body={'messages':[{'role':'user','content':'😀'*4000}]}
+            code, result = self.post('/api/chat', body)
+            self.assertEqual(code,200)
+            self.assertEqual(result['answer'],'OK')
+            complete.assert_called_once()
+
     def test_logs_are_bounded(self):
         (self.data/'logs/sakuya.log').write_text('\n'.join('line '+str(i) for i in range(100)),encoding='utf-8')
         result=self.get('/api/logs')
