@@ -22,7 +22,7 @@ from recovery import activate, commit, recover, release_path
 class RecoveryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         for path in ("app", "releases/new"):
             (self.root / path).mkdir(parents=True)
             (self.root / path / "core.py").write_text("raise RuntimeError('must not import during recovery')")
