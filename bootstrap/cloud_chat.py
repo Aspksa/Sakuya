@@ -82,8 +82,8 @@ def provider_error(error):
     if not isinstance(detail, str):
         detail = ""
     import re
-    detail = re.sub(r"(?i)bearer\\s+[A-Za-z0-9._-]+", "Bearer [скрыто]", detail)
-    detail = re.sub(r"(?i)(api[_ -]?key|authorization|token)\\s*[:=]\\s*[^\\s,;]+", r"\\1=[скрыто]", detail)
+    detail = re.sub(r"(?i)bearer\s+[A-Za-z0-9._-]+", "Bearer [скрыто]", detail)
+    detail = re.sub(r"(?i)(api[_ -]?key|authorization|token)\s*[:=]\s*[^\s,;]+", r"\1=[скрыто]", detail)
     detail = ''.join(ch for ch in detail if ch.isprintable())[:350]
     return "Cloud.ru HTTP " + str(code) + (": " + detail if detail else
         ". Проверьте выбор модели и допустимость параметров запроса")
