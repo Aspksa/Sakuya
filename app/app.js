@@ -70,6 +70,8 @@ function render(current, initial = false) {
   $('about-python').textContent = current.python_version;
   $('about-mode').textContent = modes[current.mode] || current.mode;
   $('about-pid').textContent = current.pid;
+  $('about-address').textContent = current.url.replace('http://','');
+  $('about-address').title = current.url;
   if (initial || !dirty) renderSettings();
   if (!startupBusy) $('startup-enabled').checked = current.startup.enabled;
   $('startup-help').textContent = !current.startup.supported ? 'Эта настройка доступна при запуске Sakuya в Windows.' : current.startup.enabled && !current.startup.matches ? 'Путь программы изменился. Выключите и снова включите автозапуск, чтобы обновить его.' : 'Sakuya появится в трее после входа в Windows.';

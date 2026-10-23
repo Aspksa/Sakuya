@@ -14,3 +14,5 @@ body.sidebar-collapsed{--sidebar-width:86px}.sidebar-collapsed .sidebar{padding-
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .nav-item:not(.active) .nav-active-mark{visibility:hidden}
+
+#about-address{font-family:Consolas,monospace;font-size:10px;max-width:135px;overflow-wrap:anywhere}
