@@ -26,7 +26,9 @@ class ChatTests(unittest.TestCase):
             self.assertEqual(request.get_header("Authorization"),"Bearer hidden-key")
             body=json.loads(request.data)
             self.assertEqual(body["model"],"sample/model")
-            self.assertEqual(body["messages"],[{"role":"user","content":"Привет"}])
+            self.assertEqual(body["messages"][-1],{"role":"user","content":"Привет"})
+            self.assertEqual(body["messages"][0]["role"],"system")
+            self.assertEqual(body["temperature"],0.7)
             self.assertFalse(body["stream"])
             return Response(json.dumps({"choices":[{"message":{"content":"Здравствуйте!"}}]}).encode())
         with patch.object(cloud_chat,"get_config",return_value={"model":"sample/model"}),patch.object(cloud_chat,"load_key",return_value="hidden-key"):
@@ -61,6 +63,18 @@ class ChatTests(unittest.TestCase):
         message=cloud_chat.provider_error(response)
         self.assertNotIn("secret-abcdef", message)
         self.assertNotIn("secret-bearer", message)
+
+    def test_adjacent_roles_are_merged_not_truncated(self):
+        messages=[
+            {"role":"user","content":"Один"},
+            {"role":"user","content":"Два"},
+            {"role":"assistant","content":"Ответ"},
+            {"role":"user","content":"Три"}]
+        prepared=cloud_chat.prepare_chat_messages(messages)
+        self.assertEqual([x["role"] for x in prepared],["system","user","assistant","user"])
+        self.assertIn("Один",prepared[1]["content"])
+        self.assertIn("Два",prepared[1]["content"])
+        self.assertEqual(prepared[-1]["content"],"Три")
 
     def test_model_required(self):
         with patch.object(cloud_chat,"get_config",return_value={"model":""}):
