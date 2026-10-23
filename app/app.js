@@ -140,14 +140,17 @@ function route() {
   $('breadcrumb-page').textContent = names[page];
   document.title = 'Sakuya — ' + names[page];
   closeDrawer();
-  if (page === 'updates') checkUpdates();
+  if (page === 'updates') checkUpdates(false);
   window.scrollTo({top:0,behavior:'instant'});
 }
-async function checkUpdates() {
+async function checkUpdates(remote = false) {
+  $('check-updates').disabled = true;
+  $('update-status').textContent = remote ? 'Проверка GitHub…' : 'Проверка возможностей…';
   try {
-    const response = await api('/api/update/status');
-    $('update-status').textContent = response.message;
-  } catch (error) { $('update-status').textContent = error.message; }
+    const response = await api(remote ? '/api/update/check' : '/api/update/status');
+    $('update-status').textContent = remote ? (response.reachable ? 'GitHub доступен, версия ' + response.commit.slice(0,12) + '. Установка пока заблокирована до проверки отката.' : response.reason) : response.message;
+  } catch (error) { $('update-status').textContent = 'Проверка не удалась: ' + error.message; }
+  finally { $('check-updates').disabled = false; }
 }
 
 try { document.body.classList.toggle('sidebar-collapsed',localStorage.getItem('sakuya.menu.collapsed') === 'true'); } catch {}
@@ -211,7 +214,7 @@ async function openTarget(target,button) {
 }
 $('open-documents').addEventListener('click',() => openTarget('documents',$('open-documents')));
 $('tools-log').addEventListener('click',() => $('show-log').click());
-$('check-updates').addEventListener('click',checkUpdates);
+$('check-updates').addEventListener('click',() => checkUpdates(true));
 $('open-data').addEventListener('click',() => openTarget('data',$('open-data')));
 $('open-log-file').addEventListener('click',() => openTarget('log',$('open-log-file')));
 $('show-log').addEventListener('click',async () => {
