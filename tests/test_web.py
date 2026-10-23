@@ -199,6 +199,37 @@ class WebTests(unittest.TestCase):
             self.assertEqual(result['answer'],'OK')
             complete.assert_called_once()
 
+    def test_workspace_api_persists_chat_and_memory(self):
+        code, created = self.post('/api/workspace/create', {'title':'Сохранённый чат'})
+        self.assertEqual(code,200)
+        chat_id=created['id']
+        self.assertEqual(self.get('/api/workspace/chats')['chats'][0]['id'],chat_id)
+        with patch.object(core.cloudru,'has_key',return_value=True), \
+             patch.object(core.cloud_chat,'stream',return_value=iter(['Привет ','Sakuya'])):
+            request=urllib.request.Request(self.url+'/api/chat/stream',
+                data=json.dumps({'messages':[{'role':'user','content':'Здравствуйте'}],
+                                 'chat_id':chat_id}).encode('utf-8'),
+                headers={'Content-Type':'application/json','Origin':self.url,
+                         'X-Sakuya-CSRF':self.bootstrap['csrf']})
+            with HTTP.open(request,timeout=5) as response:
+                body=response.read().decode('utf-8')
+            self.assertIn('Привет ',body)
+            self.assertIn('"done": true',body)
+        saved=self.get('/api/workspace/chat?id='+chat_id)['messages']
+        self.assertEqual(saved[0]['content'],'Здравствуйте')
+        self.assertEqual(saved[1]['content'],'Привет Sakuya')
+        code,memory=self.post('/api/workspace/memory/add',{'content':'Важный факт'})
+        self.assertEqual(code,200)
+        self.assertEqual(self.get('/api/workspace/memories')['memories'][0]['content'],'Важный факт')
+        self.assertEqual(self.post('/api/workspace/memory/delete',{'id':memory['id']})[0],200)
+        self.assertEqual(self.post('/api/workspace/delete',{'id':chat_id})[0],200)
+
+    def test_backup_requires_confirmation(self):
+        self.assertEqual(self.post('/api/workspace/backup',{'confirm':False})[0],400)
+        code, result=self.post('/api/workspace/backup',{'confirm':True})
+        self.assertEqual(code,200)
+        self.assertTrue((self.data/'backups'/result['name']).exists())
+
     def test_logs_are_bounded(self):
         (self.data/'logs/sakuya.log').write_text('\n'.join('line '+str(i) for i in range(100)),encoding='utf-8')
         result=self.get('/api/logs')
