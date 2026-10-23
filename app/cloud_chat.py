@@ -26,12 +26,30 @@ def compact_messages(messages):
     return checked
 
 
+def prepare_chat_messages(messages, system_context=None):
+    """Build chat requests like Yakumo, without dropping context or truncating turns."""
+    checked = compact_messages(messages)
+    merged = []
+    for message in checked:
+        if merged and merged[-1]["role"] == message["role"]:
+            merged[-1]["content"] += "\\n\\n" + message["content"]
+        elif merged or message["role"] == "user":
+            merged.append(dict(message))
+    instruction = "Ты Sakuya, русскоязычная помощница. Отвечай понятно, по делу и с уважением."
+    if system_context:
+        if not isinstance(system_context,str) or len(system_context)>32000:
+            raise ValueError("Память превышает размер контекста")
+        instruction += "\\n\\n" + system_context
+    return [{"role": "system", "content": instruction}, *merged]
+
+
 def complete(data, messages, opener=None):
     model = get_config(data)["model"]
     if not model or not MODEL_RE.fullmatch(model):
         raise ValueError("Выберите модель Cloud.ru в настройках")
     validated = compact_messages(messages)
-    payload = json.dumps({"model":model, "messages":validated, "stream":False},ensure_ascii=False).encode("utf-8")
+    payload = json.dumps({"model":model, "messages":prepare_chat_messages(validated),
+                          "temperature":0.7, "stream":False},ensure_ascii=False).encode("utf-8")
     if len(payload) > MAX_REQUEST_BYTES:
         raise ValueError("Размер запроса превышает технический предел 8 МиБ")
     request = urllib.request.Request(BASE + "/chat/completions", data=payload, method="POST",
@@ -94,7 +112,7 @@ def stream(data, messages, opener=None, model=None, system_context=None, image=N
     selected = model or get_config(data)["model"]
     if not isinstance(selected, str) or not MODEL_RE.fullmatch(selected):
         raise ValueError("Выберите модель Cloud.ru")
-    history=compact_messages(messages)
+    history=prepare_chat_messages(messages,system_context=system_context)
     if image is not None:
         if not isinstance(image,dict) or set(image)!={"mime","base64"}:
             raise ValueError("Недопустимое изображение")
@@ -119,12 +137,8 @@ def stream(data, messages, opener=None, model=None, system_context=None, image=N
             {"type":"text","text":history[-1]["content"]},
             {"type":"image_url","image_url":{"url":"data:"+mime+";base64,"+encoded}}
         ]}
-    if system_context:
-        if not isinstance(system_context,str) or len(system_context)>32000:
-            raise ValueError("Память превышает лимит контекста")
-        history=[{"role":"system","content":system_context}]+history
     body = json.dumps({"model": selected, "messages": history,
-                       "stream": True}, ensure_ascii=False).encode("utf-8")
+                       "temperature":0.7, "stream": True}, ensure_ascii=False).encode("utf-8")
     if len(body) > MAX_REQUEST_BYTES:
         raise ValueError("Размер запроса превышает технический предел")
     request = urllib.request.Request(BASE+"/chat/completions",data=body,method="POST",
