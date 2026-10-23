@@ -115,6 +115,11 @@ class ProcessTests(unittest.TestCase):
         self.shutdown(state)
         output = process.communicate(timeout=10)[0]
         self.assertEqual(process.returncode, 0, output.decode("utf-8", "replace"))
+        text = output.decode("utf-8", "replace")
+        self.assertIn("Sakuya готова · запуск за", text)
+        self.assertIn("Режим: диагностика", text)
+        self.assertIn("Адрес: " + state["url"], text)
+        self.assertNotIn("\x1b[", text)
         self.assertEqual(document.read_text(encoding="utf-8"), "Сохранить меня")
         self.assertFalse((self.data / "run/instance.json").exists())
         self.assertTrue((self.data / "settings.json").exists())
@@ -192,6 +197,19 @@ class ProcessTests(unittest.TestCase):
         state = self.ready(next_process)
         self.shutdown(state)
         next_process.communicate(timeout=10)
+
+    def test_normal_mode_error_gives_action_without_traceback(self):
+        path = self.data / "settings.json"
+        path.write_text("[]", encoding="utf-8")
+        process = self.start([sys.executable, "-X", "utf8", str(self.root / "bootstrap/launch.py"), "--mode", "normal"])
+        output = process.communicate(timeout=10)[0].decode("utf-8", "replace")
+        self.assertEqual(process.returncode, 1)
+        self.assertIn("Причина:", output)
+        self.assertIn("Что сделать:", output)
+        self.assertIn(str(path.resolve()), output)
+        self.assertNotIn("Traceback", output)
+        self.assertNotIn("\x1b[", output)
+        self.assertEqual(path.read_text(), "[]")
 
     def test_pending_release_recovered_before_core_import(self):
         candidate = self.root / "releases/broken"
