@@ -128,7 +128,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
             if self.headers.get('Transfer-Encoding'):
                 raise ValueError('Неподдерживаемый формат запроса')
             length = int(self.headers.get('Content-Length', '-1'))
-            if not 0 <= length <= (65536 if self.path == '/api/chat' else 4096):
+            if not 0 <= length <= (cloud_chat.MAX_REQUEST_BYTES if self.path == '/api/chat' else 4096):
                 raise ValueError('Недопустимый размер запроса')
             body = self.rfile.read(length)
             if len(body) != length:
