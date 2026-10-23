@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import sqlite3
 import time
+import threading
 import uuid
 import zipfile
 import hashlib
@@ -221,10 +222,20 @@ def backup(data: Path) -> dict:
     return {"name":name,"size":target.stat().st_size}
 
 
+_cpu_lock=threading.Lock()
+_cpu_sample=[time.monotonic(),time.process_time()]
+
 def system_status() -> dict:
     """Best-effort process metrics without third-party packages."""
     result={"python":platform.python_version(),"platform":platform.system(),
             "pid":os.getpid(),"cpu_count":os.cpu_count() or 1}
+    with _cpu_lock:
+        now_wall=time.monotonic()
+        now_cpu=time.process_time()
+        elapsed=max(.001,now_wall-_cpu_sample[0])
+        diff=max(0,now_cpu-_cpu_sample[1])
+        result["process_cpu_percent"]=round(min(100.0,100*diff/elapsed/max(1,os.cpu_count() or 1)),1)
+        _cpu_sample[:]=[now_wall,now_cpu]
     if os.name=="nt":
         import ctypes
         class Memory(ctypes.Structure):
