@@ -16,6 +16,7 @@ import sqlite3
 import time
 import uuid
 import zipfile
+import hashlib
 
 MAX_ATTACHMENT = 2 * 1024 * 1024
 MAX_EXTRACTED = 200_000
@@ -246,3 +247,67 @@ def system_status() -> dict:
         except OSError:
             pass
     return result
+
+
+DOCUMENT_ID=re.compile(r"^[0-9a-f]{32}\\.[a-z0-9]{1,8}$")
+DOCUMENT_EXT={".txt",".md",".json",".csv",".log",".py",".js",".css",".html",".docx",".pdf",".png",".jpg",".jpeg",".webp"}
+
+
+def list_documents(data: Path) -> list[dict]:
+    folder=data/"documents"
+    folder.mkdir(parents=True,exist_ok=True)
+    result=[]
+    for entry in folder.iterdir():
+        if entry.is_symlink() or not entry.is_file() or not DOCUMENT_ID.fullmatch(entry.name):
+            continue
+        stat=entry.stat()
+        result.append({"id":entry.name,"bytes":stat.st_size,"modified":stat.st_mtime})
+    result.sort(key=lambda item:item["modified"],reverse=True)
+    return result[:500]
+
+
+def save_document(data: Path, filename: str, encoded: str) -> dict:
+    if not isinstance(filename,str) or not NAME.fullmatch(filename):
+        raise ValueError("Недопустимое имя документа")
+    extension=Path(filename).suffix.lower()
+    if extension not in DOCUMENT_EXT:
+        raise ValueError("Неподдерживаемый тип файла")
+    if not isinstance(encoded,str) or len(encoded)>4*1024*1024:
+        raise ValueError("Слишком большой файл")
+    try:
+        content=base64.b64decode(encoded,validate=True)
+    except Exception:
+        raise ValueError("Неверное кодирование файла") from None
+    if not content or len(content)>2*1024*1024:
+        raise ValueError("Размер документа должен быть от 1 байта до 2 МиБ")
+    folder=data/"documents"
+    folder.mkdir(parents=True,exist_ok=True)
+    uid=uuid.uuid4().hex+extension
+    path=folder/uid
+    with path.open("xb") as output:
+        output.write(content)
+        output.flush()
+        os.fsync(output.fileno())
+    return {"id":uid,"name":filename,"bytes":len(content),
+            "sha256":hashlib.sha256(content).hexdigest()}
+
+
+def document_path(data: Path, uid: str) -> Path:
+    if not isinstance(uid,str) or not DOCUMENT_ID.fullmatch(uid):
+        raise ValueError("Неверный идентификатор документа")
+    folder=(data/"documents").resolve()
+    candidate=folder/uid
+    if candidate.is_symlink() or not candidate.is_file() or candidate.resolve().parent!=folder:
+        raise ValueError("Документ не найден")
+    return candidate
+
+
+def delete_document(data: Path, uid: str) -> None:
+    document_path(data,uid).unlink()
+
+
+def document_preview(data: Path, uid: str) -> str:
+    path=document_path(data,uid)
+    if path.suffix.lower() in (".png",".jpg",".jpeg",".webp"):
+        raise ValueError("Предпросмотр изображения здесь недоступен")
+    return extract_attachment(uid,base64.b64encode(path.read_bytes()).decode("ascii"))
