@@ -14,6 +14,8 @@ from urllib.parse import urlsplit
 from common import APP_ID, APP_NAME, APP_VERSION, atomic_json
 import startup
 import updater
+from release_stage import HEX40, stage_release, verify_staged_release
+from recovery import arm_verified_update, recover
 
 ASSETS = {'/': ('index.html', 'text/html; charset=utf-8'),
           '/assets/app.css': ('app.css', 'text/css; charset=utf-8'),
@@ -31,6 +33,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
     csrf = secrets.token_urlsafe(32)
     settings_lock = threading.RLock()
     startup_lock = threading.Lock()
+    update_lock = threading.Lock()
     started = time.monotonic()
     runtime = runtime if runtime is not None else {'mode': 'normal', 'tray': 'unavailable'}
 
@@ -43,7 +46,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 'tray': runtime.get('tray', 'unavailable'), 'python_version': sys.version.split()[0],
                 'python_executable': sys.executable, 'data_directory': str(data),
                 'settings': current, 'startup': startup.status(),
-                'capabilities': {'open_folder': os.name == 'nt', 'open_log': os.name == 'nt', 'open_documents': os.name == 'nt'}, 'update': {'repository': 'Aspksa/Sakuya', 'automatic_install': False, 'recovery_available': True}}
+                'capabilities': {'open_folder': os.name == 'nt', 'open_log': os.name == 'nt', 'open_documents': os.name == 'nt'}, 'update': {'repository': 'Aspksa/Sakuya', 'automatic_install': False, 'manual_restart_install': True, 'recovery_available': True}}
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = 'HTTP/1.0'
@@ -86,7 +89,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                     return self.reply(200, updater.check_remote())
                 if path == '/api/update/status':
                     return self.reply(200, {'repository': 'Aspksa/Sakuya', 'automatic_install': False,
-                                            'recovery_available': True, 'message': 'Установка обновлений отключена до проверки загрузчика и отката'})
+                                            'recovery_available': True, 'message': 'Доступна подготовка обновления. Для применения нужен перезапуск Sakuya'})
                 if path == '/api/tools':
                     return self.reply(200, {'actions': ['open-data', 'open-documents', 'open-log'] if os.name == 'nt' else [],
                                             'arbitrary_commands': False})
@@ -141,6 +144,29 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/update/prepare':
+                    if set(payload) != {'commit'} or not isinstance(payload['commit'], str) or not HEX40.fullmatch(payload['commit']):
+                        raise ValueError('Укажите полный SHA коммита GitHub')
+                    if not update_lock.acquire(blocking=False):
+                        return self.reply(409, {'error': 'Другое обновление уже подготавливается'})
+                    try:
+                        commit_id = payload['commit']
+                        # Browser-supplied commit must match GitHub's current main branch.
+                        remote = updater.check_remote()
+                        if not remote.get('reachable') or remote.get('commit') != commit_id:
+                            return self.reply(409, {'error': 'Коммит больше не соответствует GitHub main'})
+                        root = Path(os.environ.get('SAKUYA_ROOT', Path(__file__).resolve().parents[1])).resolve()
+                        release = root / 'releases' / commit_id
+                        if not release.exists():
+                            stage_release(root, commit_id)
+                        verify_staged_release(root, commit_id)
+                        # Supervisor owns the exclusive InstanceLock while HTTP is active.
+                        recover(root)
+                        arm_verified_update(root, commit_id)
+                        logger.info('Подготовлено обновление %s. Требуется перезапуск.', commit_id)
+                        return self.reply(200, {'prepared': True, 'commit': commit_id, 'restart_required': True})
+                    finally:
+                        update_lock.release()
                 if self.path == '/api/settings':
                     if set(payload) != {'port', 'autostart_browser'}:
                         raise ValueError('Нужны поля port и autostart_browser')
