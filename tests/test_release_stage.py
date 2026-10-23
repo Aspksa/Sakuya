@@ -39,6 +39,9 @@ class StageTests(unittest.TestCase):
             return FakeResponse(files[name])
         return files, tree, opener
 
+    def test_cloud_adapter_is_in_verified_release(self):
+        self.assertIn("cloud_chat.py", FILES)
+
     def test_verified_stage_and_detect_tampering(self):
         _, _, opener = self.fixtures()
         with tempfile.TemporaryDirectory() as folder:
