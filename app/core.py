@@ -13,6 +13,7 @@ import time
 from urllib.parse import urlsplit
 from common import APP_ID, APP_NAME, APP_VERSION, atomic_json
 import startup
+import updater
 
 ASSETS = {'/': ('index.html', 'text/html; charset=utf-8'),
           '/assets/app.css': ('app.css', 'text/css; charset=utf-8'),
@@ -81,6 +82,8 @@ def create_server(data: Path, identity: str, session: str, token: str,
                     return self.reply(200, dict(snapshot(), csrf=csrf))
                 if path == '/api/status':
                     return self.reply(200, snapshot())
+                if path == '/api/update/check':
+                    return self.reply(200, updater.check_remote())
                 if path == '/api/update/status':
                     return self.reply(200, {'repository': 'Aspksa/Sakuya', 'automatic_install': False,
                                             'recovery_available': True, 'message': 'Установка обновлений отключена до проверки загрузчика и отката'})
