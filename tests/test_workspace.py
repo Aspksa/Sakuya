@@ -55,6 +55,25 @@ class TestWorkspace(unittest.TestCase):
         with self.assertRaises(ValueError):
             workspace.chat_messages(self.data,"../outside")
 
+    def test_documents_sandbox_and_display_names(self):
+        raw=base64.b64encode("Документ в Sakuya".encode()).decode()
+        item=workspace.save_document(self.data,"Мой файл.txt",raw)
+        names=workspace.list_documents(self.data)
+        self.assertEqual(names[0]["name"],"Мой файл.txt")
+        self.assertIn("Документ в Sakuya",workspace.document_preview(self.data,item["id"]))
+        with self.assertRaises(ValueError):
+            workspace.document_preview(self.data,"../../secret")
+        workspace.delete_document(self.data,item["id"])
+        self.assertEqual(workspace.list_documents(self.data),[])
+
+    def test_backup_snapshot_and_metrics(self):
+        workspace.create_chat(self.data,"Память")
+        record=workspace.backup(self.data)
+        self.assertTrue((self.data/"backups"/record["name"]).exists())
+        info=workspace.system_status()
+        self.assertGreaterEqual(info["cpu_count"],1)
+        self.assertIn("process_cpu_percent",info)
+
     def test_stream_parses_deltas(self):
         class Stream:
             def __enter__(self):return self
