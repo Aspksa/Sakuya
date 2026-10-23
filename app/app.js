@@ -150,6 +150,7 @@ function route() {
   closeDrawer();
   if (page === 'updates') checkUpdates(false);
   if (page === 'memory') loadMemories();
+  if (page === 'tools') loadDocuments();
   if (page === 'monitor') loadMonitor();
   if (page === 'chat') loadChatList();
   window.scrollTo({top:0,behavior:'instant'});
@@ -507,6 +508,41 @@ $('monitor-backup').onclick=async()=>{
   }catch(error){toast(error.message,true);}
 };
 $('sakuya-avatar').onclick=()=>{location.hash='#chat';$('chat-input').focus();};
+async function loadDocuments(){
+  try{
+    const response=await api('/api/documents');
+    const list=$('document-list');list.replaceChildren();
+    if(!response.documents.length){
+      const empty=document.createElement('p');empty.className='helper';empty.textContent='Документов пока нет.';list.append(empty);
+    }
+    for(const item of response.documents){
+      const row=document.createElement('div');row.className='document-entry';
+      const name=document.createElement('span');name.textContent=item.id+' · '+Math.ceil(item.bytes/1024)+' КиБ';
+      const preview=document.createElement('button');preview.type='button';preview.className='button secondary';preview.textContent='Текст';
+      preview.onclick=async()=>{
+        try{$('document-preview').textContent=(await api('/api/documents/preview',{id:item.id})).text;}
+        catch(error){toast(error.message,true);}
+      };
+      const remove=document.createElement('button');remove.type='button';remove.className='button secondary';remove.textContent='Удалить';
+      remove.onclick=async()=>{if(!confirm('Удалить выбранный файл?'))return;try{await api('/api/documents/delete',{id:item.id});await loadDocuments();}catch(error){toast(error.message,true);}};
+      row.append(name,preview,remove);list.append(row);
+    }
+  }catch(error){$('document-preview').textContent=error.message;}
+}
+$('document-upload-button').onclick=async()=>{
+  const file=$('document-upload').files[0];
+  if(!file)return toast('Выберите документ.',true);
+  $('document-upload-button').disabled=true;
+  try{
+    if(file.size>2*1024*1024)throw new Error('Файл превышает 2 МиБ.');
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+    const saved=await api('/api/documents/upload',{name:file.name,base64:btoa(binary)});
+    $('document-upload').value='';
+    toast('Документ сохранён: '+saved.name);await loadDocuments();
+  }catch(error){toast(error.message,true);}
+  finally{$('document-upload-button').disabled=false;}
+};
 document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
 route(); refresh();
 setInterval(() => { if (!document.hidden) refresh(); },5000);
