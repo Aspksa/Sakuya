@@ -27,7 +27,7 @@ function toast(message, error = false) {
 }
 
 async function api(path, payload) {
-  const options = {cache:'no-store', signal:AbortSignal.timeout(path === '/api/update/prepare' ? 120000 : 16000)};
+  const options = {cache:'no-store', signal:AbortSignal.timeout(path === '/api/update/prepare' ? 120000 : path === '/api/chat' ? 60000 : 16000)};
   if (payload !== undefined) {
     options.method = 'POST';
     options.headers = {'Content-Type':'application/json','X-Sakuya-CSRF':csrf};
