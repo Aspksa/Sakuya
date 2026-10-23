@@ -110,7 +110,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 if path == '/api/workspace/memories':
                     return self.reply(200, {'memories': workspace.list_memory(data)})
                 if path == '/api/workspace/status':
-                    return self.reply(200, workspace.status(data))
+                    return self.reply(200, dict(workspace.status(data),system=workspace.system_status()))
                 if path == '/api/workspace/chat':
                     query = urlsplit(self.path).query
                     from urllib.parse import parse_qs
