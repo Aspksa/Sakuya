@@ -152,7 +152,7 @@ function route() {
   if (page === 'memory') loadMemories();
   if (page === 'tools') loadDocuments();
   if (page === 'monitor') loadMonitor();
-  if (page === 'chat') loadChatList();
+  if (page === 'chat') { loadChatList(); syncChatModel(); }
   window.scrollTo({top:0,behavior:'instant'});
 }
 async function checkUpdates(remote = false) {
@@ -318,6 +318,7 @@ $('cloudru-model-save').addEventListener('click',async () => {
   try {
     const result = await api('/api/cloudru/model',{model:$('cloudru-model').value});
     $('cloudru-model').dataset.saved = result.model;
+    await syncChatModel();
     toast('Модель Cloud.ru сохранена.');
   } catch (error) { toast(error.message,true); }
 });
@@ -335,6 +336,21 @@ loadCloudru();
 let currentChatId = null;
 let chatAbort = null;
 let activeChatModel = '';
+async function syncChatModel() {
+  try {
+    const saved = await api('/api/cloudru/status');
+    activeChatModel = saved.model || '';
+    const select = $('chat-select-model');
+    if (activeChatModel && !Array.from(select.options).some(option => option.value === activeChatModel)) {
+      const option = document.createElement('option');
+      option.value = activeChatModel;
+      option.textContent = activeChatModel + ' (из настроек)';
+      select.append(option);
+    }
+    select.value = activeChatModel;
+    $('chat-status').textContent = activeChatModel ? 'Модель: ' + activeChatModel : 'Модель Cloud.ru не выбрана';
+  } catch (error) { $('chat-status').textContent = error.message; }
+}
 async function loadChatList() {
   try {
     const term = $('chat-search').value.trim();
@@ -408,8 +424,13 @@ $('chat-reload-models').onclick=async()=>{
     const [available,saved]=await Promise.all([api('/api/cloudru/models'),api('/api/cloudru/status')]);
     const select=$('chat-select-model');select.replaceChildren();
     for(const name of available.models){const option=document.createElement('option');option.value=name;option.textContent=name;select.append(option);}
-    if(available.models.includes(saved.model))select.value=saved.model;
-    activeChatModel=select.value;
+    if (saved.model && !available.models.includes(saved.model)) {
+      const option=document.createElement('option');
+      option.value=saved.model;option.textContent=saved.model+' (нет в каталоге)';
+      select.append(option);
+    }
+    if(saved.model)select.value=saved.model;
+    activeChatModel=saved.model||'';
     $('chat-status').textContent='Моделей доступно: '+available.models.length;
   }catch(error){toast(error.message,true);}
   finally{$('chat-reload-models').disabled=false;}
@@ -418,6 +439,7 @@ $('chat-select-model').onchange=async()=>{
   try{
     await api('/api/cloudru/model',{model:$('chat-select-model').value});
     activeChatModel=$('chat-select-model').value;
+    $('cloudru-model').dataset.saved=activeChatModel;
     toast('Модель сохранена.');
   }catch(error){toast(error.message,true);}
 };
