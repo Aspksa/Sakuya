@@ -130,6 +130,35 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.post('/api/open',{'target':'../../unsafe'})[0],400)
         self.assertEqual(self.post('/api/open',{'target':123})[0],400)
 
+    def test_update_prepare_rejects_invalid_and_stale_commits(self):
+        from unittest.mock import patch
+        good = 'a'*40
+        self.assertEqual(self.post('/api/update/prepare', {'commit':'../../evil'})[0],400)
+        with patch.object(core.updater,'check_remote', return_value={'reachable': True, 'commit': 'b'*40}):
+            code, result = self.post('/api/update/prepare', {'commit':good})
+            self.assertEqual(code,409)
+            self.assertIn('GitHub',result['error'])
+        with patch.object(core.updater,'check_remote', return_value={'reachable': False}):
+            self.assertEqual(self.post('/api/update/prepare', {'commit':good})[0],409)
+
+    def test_update_prepare_arms_only_verified_candidate(self):
+        from unittest.mock import patch
+        good = 'a'*40
+        with patch.object(core.updater,'check_remote', return_value={'reachable': True, 'commit':good}), \\
+             patch.object(core,'stage_release') as stage, \\
+             patch.object(core,'verify_staged_release',return_value=True) as verify, \\
+             patch.object(core,'recover') as recover, \\
+             patch.object(core,'arm_verified_update') as arm:
+            with patch.dict(os.environ, {'SAKUYA_ROOT':str(self.data)}):
+                code, result = self.post('/api/update/prepare', {'commit':good})
+            self.assertEqual(code,200)
+            self.assertTrue(result['restart_required'])
+            stage.assert_called_once()
+            verify.assert_called_once()
+            recover.assert_called_once()
+            arm.assert_called_once()
+        self.assertFalse(self.stop.is_set())
+
     def test_logs_are_bounded(self):
         (self.data/'logs/sakuya.log').write_text('\n'.join('line '+str(i) for i in range(100)),encoding='utf-8')
         result=self.get('/api/logs')
