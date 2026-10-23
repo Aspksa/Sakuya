@@ -266,6 +266,62 @@ $('show-log').addEventListener('click',async () => {
 });
 $('close-log').addEventListener('click',() => $('log-dialog').close());
 $('log-dialog').addEventListener('click',event => { if (event.target === $('log-dialog')) { const r=event.target.getBoundingClientRect(); if (event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom) event.target.close(); } });
+async function loadCloudru() {
+  try {
+    const status = await api('/api/cloudru/status');
+    $('cloudru-status').textContent = status.connected ? 'API-ключ сохранён локально. Для проверки соединения нажмите кнопку ниже.' : 'API-ключ ещё не добавлен.';
+    $('cloudru-model').dataset.saved = status.model || '';
+    $('cloudru-test').disabled = !status.connected;
+    $('cloudru-delete').disabled = !status.connected;
+  } catch (error) { $('cloudru-status').textContent = error.message; }
+}
+$('cloudru-save').addEventListener('click',async () => {
+  const key = $('cloudru-key').value.trim();
+  if (!key) return toast('Введите API-ключ Cloud.ru.',true);
+  $('cloudru-save').disabled = true;
+  try {
+    await api('/api/cloudru/key',{key});
+    $('cloudru-key').value = '';
+    toast('Ключ Cloud.ru защищён и сохранён.');
+    await loadCloudru();
+  } catch (error) { toast(error.message,true); }
+  finally { $('cloudru-save').disabled = false; }
+});
+$('cloudru-test').addEventListener('click',async () => {
+  $('cloudru-test').disabled = true;
+  $('cloudru-status').textContent = 'Подключение к Cloud.ru…';
+  try {
+    const data = await api('/api/cloudru/models');
+    const select = $('cloudru-model');
+    select.replaceChildren();
+    for (const model of data.models) {
+      const opt = document.createElement('option');
+      opt.value = model; opt.textContent = model; select.append(opt);
+    }
+    if (data.models.includes(select.dataset.saved)) select.value = select.dataset.saved;
+    $('cloudru-model-save').disabled = data.models.length === 0;
+    $('cloudru-status').textContent = 'Связь установлена. Доступных моделей: ' + data.models.length;
+  } catch (error) { $('cloudru-status').textContent = 'Ошибка соединения: ' + error.message; }
+  finally { $('cloudru-test').disabled = false; }
+});
+$('cloudru-model-save').addEventListener('click',async () => {
+  try {
+    const result = await api('/api/cloudru/model',{model:$('cloudru-model').value});
+    $('cloudru-model').dataset.saved = result.model;
+    toast('Модель Cloud.ru сохранена.');
+  } catch (error) { toast(error.message,true); }
+});
+$('cloudru-delete').addEventListener('click',async () => {
+  if (!confirm('Удалить сохранённый API-ключ Cloud.ru?')) return;
+  try {
+    await api('/api/cloudru/delete',{confirm:true});
+    $('cloudru-model').replaceChildren();
+    $('cloudru-model-save').disabled = true;
+    await loadCloudru();
+    toast('Ключ Cloud.ru удалён.');
+  } catch (error) { toast(error.message,true); }
+});
+loadCloudru();
 document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
 route(); refresh();
 setInterval(() => { if (!document.hidden) refresh(); },5000);
