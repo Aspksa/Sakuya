@@ -64,6 +64,31 @@ def complete(data, messages, opener=None):
     return {"answer":answer, "model":model, "truncated":False}
 
 
+def provider_error(error):
+    """Return a small sanitized provider error; never include request headers or keys."""
+    code = error.code
+    if code in (401, 403):
+        return "Cloud.ru не принял API-ключ (HTTP " + str(code) + ")"
+    if code == 429:
+        return "Cloud.ru ограничил частоту запросов (HTTP 429)"
+    try:
+        raw = error.read(4096)
+        body = json.loads(raw)
+    except (ValueError, OSError, UnicodeDecodeError):
+        body = {}
+    detail = body.get("error", {}) if isinstance(body, dict) else {}
+    if isinstance(detail, dict):
+        detail = detail.get("message", "")
+    if not isinstance(detail, str):
+        detail = ""
+    import re
+    detail = re.sub(r"(?i)bearer\s+[A-Za-z0-9._-]+", "Bearer [скрыто]", detail)
+    detail = re.sub(r"(?i)(api[_ -]?key|authorization|token)\s*[:=]\s*[^\s,;]+", r"\1=[скрыто]", detail)
+    detail = ''.join(ch for ch in detail if ch.isprintable())[:350]
+    return "Cloud.ru HTTP " + str(code) + (": " + detail if detail else
+        ". Проверьте выбор модели и допустимость параметров запроса")
+
+
 def stream(data, messages, opener=None, model=None, system_context=None, image=None):
     """Yield OpenAI-compatible SSE text deltas; consumer controls cancellation."""
     selected = model or get_config(data)["model"]
@@ -132,10 +157,6 @@ def stream(data, messages, opener=None, model=None, system_context=None, image=N
                     if isinstance(content,str) and content:
                         yield content
     except urllib.error.HTTPError as error:
-        if error.code in (401,403):
-            raise ValueError("Cloud.ru не принял ключ") from None
-        if error.code==429:
-            raise ValueError("Превышен лимит Cloud.ru") from None
-        raise ValueError("Cloud.ru вернул HTTP "+str(error.code)) from None
+        raise ValueError(provider_error(error)) from None
     except urllib.error.URLError:
         raise ValueError("Связь с Cloud.ru прервана") from None
