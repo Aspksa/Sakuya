@@ -76,3 +76,27 @@ button{min-height:36px}
 @media(hover:none) and (pointer:coarse){
   .nav-item,.button,.icon-button,input,select{min-height:44px}
 }
+
+/* Sakuya unified workspace — warm ivory/gold design */
+.sakuya-chat-layout{display:grid;grid-template-columns:minmax(215px,275px) minmax(0,1fr);align-items:stretch;gap:16px}
+.sakuya-conversations{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sakuya-conversations label,.chat-provider label,.chat-attachment label{font-size:12px;font-weight:600;color:var(--color-text)}
+.sakuya-conversations input,.chat-provider select{width:100%;min-width:0;background:var(--color-surface);border:1px solid var(--color-border);padding:11px;border-radius:9px;color:var(--color-text);font:inherit}
+.chat-list{overflow-y:auto;max-height:55dvh;display:grid;gap:6px;align-content:start}
+.chat-history-entry{width:100%;text-align:left;border:1px solid transparent;border-radius:9px;padding:11px 12px;background:#FBF6EC;color:var(--color-text);font-size:12px;cursor:pointer;overflow-wrap:anywhere}
+.chat-history-entry.selected{border-color:#D9B878;background:#F5E7CC;color:#4B3215;font-weight:600}
+.chat-history-entry:hover{background:#F5E7CC}
+.chat-management{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.chat-management .button{flex:1;min-width:0}
+.sakuya-chat-panel{min-width:0}
+.chat-provider{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:15px}
+.chat-provider select{flex:1 1 200px;width:auto}
+.chat-provider .button{margin:0}
+.chat-attachment{display:grid;gap:7px}
+.chat-attachment input{max-width:100%;font-size:12px}
+.memory-list{display:grid;gap:10px;margin-top:22px}
+.memory-entry{border:1px solid var(--color-border);border-radius:9px;padding:14px;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.memory-entry p{white-space:pre-wrap;overflow-wrap:anywhere;flex:1;min-width:0}
+.memory-entry .button{flex-shrink:0}
+@media(max-width:900px){.sakuya-chat-layout{grid-template-columns:minmax(0,1fr)}.chat-list{max-height:180px}.chat-management{margin-top:0}}
+@media(max-width:650px){.sakuya-conversations,.sakuya-chat-panel{padding:15px}.chat-provider .button{flex:1 1 auto}.memory-entry{align-items:flex-start;flex-wrap:wrap}.memory-entry .button{margin:0}}
