@@ -60,7 +60,7 @@ class TestWorkspace(unittest.TestCase):
             def __enter__(self):return self
             def __exit__(self,*args):return False
             def __iter__(self):
-                return iter([b'data: {"choices":[{"delta":{"content":"Привет"}}]}\n',
+                return iter(['data: {"choices":[{"delta":{"content":"Привет"}}]}\n'.encode("utf-8"),
                              b'data: {"choices":[{"delta":{"content":"!"}}]}\n',
                              b'data: [DONE]\n'])
         def opener(request,timeout):
