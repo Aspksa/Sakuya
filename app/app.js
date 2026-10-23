@@ -308,7 +308,13 @@ $('cloudru-test').addEventListener('click',async () => {
       const opt = document.createElement('option');
       opt.value = model; opt.textContent = model; select.append(opt);
     }
-    if (data.models.includes(select.dataset.saved)) select.value = select.dataset.saved;
+    if (select.dataset.saved && !data.models.includes(select.dataset.saved)) {
+      const missing=document.createElement('option');
+      missing.value=select.dataset.saved;
+      missing.textContent=select.dataset.saved+' (нет в каталоге)';
+      select.append(missing);
+    }
+    if (select.dataset.saved) select.value = select.dataset.saved;
     $('cloudru-model-save').disabled = data.models.length === 0;
     $('cloudru-status').textContent = 'Связь установлена. Доступных моделей: ' + data.models.length;
   } catch (error) { $('cloudru-status').textContent = 'Ошибка соединения: ' + error.message; }
