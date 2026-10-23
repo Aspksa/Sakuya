@@ -24,7 +24,7 @@ import urllib.request
 import webbrowser
 
 from common import HTTP, InstanceLock, atomic_json, data_directory, instance_id, read_instance
-from recovery import recover
+from recovery import recover, commit
 from display import StartupDisplay, ConsoleLogHandler
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -199,6 +199,15 @@ def run(mode="normal", autostart=False):
         except Exception:
             logger.exception(messages["tray_error"])
         display.end("success" if tray is not None else "warning")
+        transaction_file = ROOT / ".updates" / "transaction.json"
+        if transaction_file.exists():
+            transaction = json.loads(transaction_file.read_text(encoding="utf-8"))
+            if transaction.get("phase") == "pending":
+                expected = (ROOT / transaction["candidate"]).resolve()
+                if release.resolve() == expected and thread.is_alive():
+                    commit(ROOT)
+                else:
+                    raise RuntimeError("Update startup verification failed")
         runtime["tray"] = "active" if tray is not None else "unavailable"
         total = display.summary(state["url"], mode)
         logger.info("Итог запуска: адрес=%s; режим=%s; время=%.2f с; этапы=%s", state["url"], mode, total, display.timings)
