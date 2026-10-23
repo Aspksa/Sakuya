@@ -118,7 +118,7 @@
           <form id="chat-form" class="chat-form">
             <label for="chat-input">Сообщение</label>
             <textarea id="chat-input" rows="3" placeholder="Напишите сообщение…" required></textarea>
-            <div class="chat-attachment"><label for="chat-file">Прикрепить текстовый документ или DOCX</label><input id="chat-file" type="file" accept=".txt,.md,.json,.csv,.log,.py,.js,.css,.html,.docx"><span id="chat-file-info" class="helper">До 2 МиБ. Текст документа отправится в модель вместе с сообщением.</span></div>
+            <div class="chat-attachment"><label for="chat-file">Прикрепить документ или изображение</label><input id="chat-file" type="file" accept=".txt,.md,.json,.csv,.log,.py,.js,.css,.html,.docx,.pdf,.png,.jpg,.jpeg,.webp"><span id="chat-file-info" class="helper">До 2 МиБ. Содержимое файла отправится в Cloud.ru; изображения поддерживаются только моделями с распознаванием картинок.</span></div>
             <label class="chat-memory-opt"><input type="checkbox" id="chat-use-memory"> Использовать мои записи памяти в ответах Cloud.ru</label><div class="chat-actions"><span class="helper" id="chat-status" role="status">История хранится локально в Sakuya.</span><button class="button primary" id="chat-send" type="submit">Отправить</button><button class="button secondary" id="chat-stop" type="button" disabled>Остановить</button><button class="button secondary" id="chat-clear" type="button">Новый диалог</button></div>
           </form>
         </article>
