@@ -55,7 +55,7 @@ def open_browser(url, logger):
         logger.exception("Не удалось открыть браузер. Адрес: %s", url)
 
 
-def start_tray(data, state, logger):
+def start_tray(data, state, logger, messages):
     if os.name != "nt" or os.environ.get("SAKUYA_DISABLE_TRAY") == "1":
         return None
     env = os.environ.copy()
@@ -71,12 +71,12 @@ def start_tray(data, state, logger):
         try:
             ready = json.loads((data / "run/tray-ready.json").read_text(encoding="utf-8-sig"))
             if ready["session"] == state["session"] and ready["pid"] == process.pid:
-                logger.info("Трей готов, PID=%s", process.pid)
+                logger.info(messages["tray_ready"], process.pid)
                 return process
         except (OSError, ValueError, KeyError):
             pass
         time.sleep(.1)
-    logger.warning("Трей не подтвердил готовность. См. logs/tray.log")
+    logger.warning(messages["tray_timeout"])
     if process.poll() is None:
         process.terminate()
         process.wait(timeout=5)
@@ -167,9 +167,9 @@ def run(mode="normal", autostart=False):
             if sig is not None:
                 previous_handlers[sig] = signal.signal(sig, lambda *_: stop.set())
         try:
-            tray = start_tray(data, state, logger)
+            tray = start_tray(data, state, logger, messages)
         except Exception:
-            logger.exception("Не удалось создать трей")
+            logger.exception(messages["tray_error"])
         if mode == "diagnostic":
             logger.info(messages["diagnostic"])
         elif tray is None:
