@@ -254,7 +254,7 @@ def create_server(data: Path, identity: str, session: str, token: str,
                         try:
                             for delta in chunks:
                                 answer.append(delta)
-                                event=json.dumps({'delta':delta},ensure_ascii=False).encode('utf-8')+b'\\n'
+                                event=json.dumps({'delta':delta},ensure_ascii=False).encode('utf-8')+b'\n'
                                 self.wfile.write(event)
                                 self.wfile.flush()
                             full=''.join(answer)
@@ -262,14 +262,14 @@ def create_server(data: Path, identity: str, session: str, token: str,
                                 raise ValueError('Модель не вернула текст')
                             if chat_id:
                                 workspace.append_exchange(data,chat_id,history[-1]['content'],full)
-                            self.wfile.write(json.dumps({'done':True,'model':model or cloudru.get_config(data)['model']}).encode()+b'\\n')
+                            self.wfile.write(json.dumps({'done':True,'model':model or cloudru.get_config(data)['model']}).encode()+b'\n')
                             self.wfile.flush()
                         except (BrokenPipeError,ConnectionResetError):
                             logger.info('Поток Cloud.ru остановлен клиентом')
                         except Exception:
                             logger.exception('Ошибка потоковой генерации')
                             try:
-                                self.wfile.write(json.dumps({'error':'Ошибка Cloud.ru, ответ не сохранён'},ensure_ascii=False).encode('utf-8')+b'\\n')
+                                self.wfile.write(json.dumps({'error':'Ошибка Cloud.ru, ответ не сохранён'},ensure_ascii=False).encode('utf-8')+b'\n')
                                 self.wfile.flush()
                             except OSError:
                                 pass
