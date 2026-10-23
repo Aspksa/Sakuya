@@ -24,6 +24,7 @@
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
   <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4M10 10h4v4h-4z"/></symbol>
   <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3 4h18v13H3zM8 21h8m-4-4v4M7 13h10"/></symbol>
+  <symbol id="i-tools" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16M8 4v6m8 4v6"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></symbol>
 </svg>
@@ -38,6 +39,8 @@
   <nav aria-label="Основные разделы">
     <a class="nav-item active" href="#home" id="nav-home" aria-current="page" title="Главная"><svg><use href="#i-home"/></svg><span>Главная</span><span class="nav-active-mark"></span></a>
     <a class="nav-item" href="#settings" id="nav-settings" title="Настройки"><svg><use href="#i-settings"/></svg><span>Настройки</span></a>
+    <a class="nav-item" href="#tools" id="nav-tools" title="Инструменты"><svg><use href="#i-tools"/></svg><span>Инструменты</span></a>
+    <a class="nav-item" href="#updates" id="nav-updates" title="Обновления"><svg><use href="#i-refresh"/></svg><span>Обновления</span></a>
   </nav>
   <div class="sidebar-bottom">
     <div class="local-card"><svg><use href="#i-shield"/></svg><span><strong>Ваше пространство</strong><small>Работает на этом компьютере</small></span></div>
@@ -64,6 +67,12 @@
         <article class="status-card"><span class="card-icon"><svg><use href="#i-clock"/></svg></span><span class="metric-label">Время работы</span><strong class="metric" id="uptime">…</strong><span class="metric-note" id="mode-note">Проверка режима…</span></article>
         <article class="status-card"><span class="card-icon"><svg><use href="#i-tray"/></svg></span><span class="metric-label">Управление</span><strong class="metric" id="tray-status">…</strong><span class="metric-note" id="tray-note">Проверка трея…</span></article>
       </div>
+      <div class="section-heading"><h2>Подробности системы</h2><span>Состояние локального экземпляра</span></div>
+      <div class="status-grid system-grid">
+        <article class="status-card"><span class="metric-label">Сервер</span><strong class="metric" id="server-address">…</strong><span class="metric-note">Только 127.0.0.1</span></article>
+        <article class="status-card"><span class="metric-label">Процесс</span><strong class="metric" id="server-pid">…</strong><span class="metric-note">Идентификатор PID</span></article>
+        <article class="status-card"><span class="metric-label">Обновления</span><strong class="metric" id="update-ready">…</strong><span class="metric-note">Режим установки</span></article>
+      </div>
       <div class="section-heading"><h2>Быстрый доступ</h2><span>Настройки и файлы</span></div>
       <div class="access-grid"><article class="panel data-panel"><div class="panel-title"><span class="card-icon small"><svg><use href="#i-folder"/></svg></span><h3>Папка данных</h3><span class="tag">На компьютере</span></div><p>Документы и настройки хранятся отдельно от программы.</p><div class="path-box" id="data-path">Загрузка пути…</div><button class="text-button" id="open-data" disabled>Открыть папку <svg><use href="#i-arrow"/></svg></button><small class="helper" id="folder-hint"></small></article>
       <article class="panel journal-panel"><div class="panel-title"><span class="card-icon small"><svg><use href="#i-log"/></svg></span><h3>Журнал работы</h3></div><p>Сообщения запуска и подробности, если что-то пошло не так.</p><button class="button secondary" id="show-log" disabled>Посмотреть журнал <svg><use href="#i-arrow"/></svg></button><div class="journal-note"><svg><use href="#i-shield"/></svg><span>Журнал остаётся на вашем компьютере</span></div></article></div>
@@ -78,6 +87,18 @@
         </form>
         <section class="panel settings-panel" aria-labelledby="startup-title"><div class="settings-intro"><span class="card-icon"><svg><use href="#i-clock"/></svg></span><div><h2 id="startup-title">Автозапуск Windows</h2><p>Применяется сразу, отдельно от настроек выше.</p></div></div><div class="field-row"><div><label for="startup-enabled">Запускать Sakuya при входе</label><p class="helper" id="startup-help">Проверка автозапуска…</p></div><label class="switch"><input id="startup-enabled" type="checkbox" aria-describedby="startup-help" disabled><span aria-hidden="true"></span></label></div></section>
       </div><aside class="settings-aside"><section class="panel system-panel"><span class="system-emblem"><svg><use href="#i-fox"/></svg></span><h2>Sakuya</h2><p>Личное пространство</p><dl><div><dt>Версия</dt><dd data-bind="version">…</dd></div><div><dt>Python</dt><dd id="about-python">…</dd></div><div><dt>Режим</dt><dd id="about-mode">…</dd></div><div><dt>Процесс</dt><dd id="about-pid">…</dd></div><div><dt>Адрес</dt><dd id="about-address">…</dd></div></dl><span class="system-label"><svg><use href="#i-shield"/></svg>Работает локально</span></section><section class="settings-tip"><span>✦</span><p>Предпочитаемый порт может быть занят. Sakuya выберет свободный и откроет правильный адрес.</p></section></aside></div>
+    </section>
+    <section id="page-tools" aria-labelledby="tools-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">ЛОКАЛЬНЫЕ ОПЕРАЦИИ</p><h1 id="tools-title">Инструменты</h1></div></div>
+      <div class="access-grid">
+        <article class="panel"><h2>Документы</h2><p>Открыть локальную папку документов Sakuya в проводнике Windows.</p><button class="button secondary" id="open-documents" disabled>Открыть документы</button></article>
+        <article class="panel"><h2>Диагностика</h2><p>Просмотр журнала без выполнения произвольных команд.</p><button class="button secondary" id="tools-log" disabled>Открыть журнал</button></article>
+      </div>
+      <p class="helper">Операции ограничены разрешёнными действиями; ввод команд и произвольных путей отключён.</p>
+    </section>
+    <section id="page-updates" aria-labelledby="updates-title" hidden>
+      <div class="page-heading"><div><p class="eyebrow">БЕЗОПАСНЫЕ ОБНОВЛЕНИЯ</p><h1 id="updates-title">Обновления проекта</h1></div></div>
+      <article class="panel"><h2>GitHub · Aspksa/Sakuya</h2><p id="update-status">Проверка состояния…</p><p>Автоматическая установка пока отключена. Система восстановления уже предусмотрена, но загрузчик обновлений и проверка отката должны пройти отдельные тесты.</p><button class="button secondary" id="check-updates">Проверить возможности</button></article>
     </section>
     <footer class="page-footer"><span>Sakuya <span class="footer-star">✦</span> Личное пространство</span><span>На вашем компьютере</span></footer>
   </main>

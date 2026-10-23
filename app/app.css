@@ -16,3 +16,6 @@ body.sidebar-collapsed{--sidebar-width:86px}.sidebar-collapsed .sidebar{padding-
 .nav-item:not(.active) .nav-active-mark{visibility:hidden}
 
 #about-address{font-family:Consolas,monospace;font-size:10px;max-width:135px;overflow-wrap:anywhere}
+
+/* Unified dashboard and navigation improvements */
+.status-grid.system-grid{margin-top:14px}.system-grid .status-card{min-width:0}.system-grid .metric{font-size:clamp(16px,2vw,25px);overflow-wrap:anywhere}.sidebar nav{min-height:0;overflow-y:auto;scrollbar-width:thin}.nav-item:focus-visible{outline-offset:-3px}.panel .button{margin-top:15px}@media(max-width:650px){.system-grid{grid-template-columns:1fr}.system-grid .status-card{min-height:94px}}@media(prefers-reduced-motion:reduce){.sidebar,.nav-item{transition:none}}

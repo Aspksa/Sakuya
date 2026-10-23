@@ -119,6 +119,17 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.post('/api/shutdown',{}, {'X-Sakuya-CSRF':self.bootstrap['csrf']})[0],403)
         self.assertFalse(self.stop.is_set())
 
+    def test_tool_manifest_and_update_status_are_read_only(self):
+        tools=self.get('/api/tools')
+        self.assertFalse(tools['arbitrary_commands'])
+        self.assertEqual(tools['actions'], ['open-data','open-documents','open-log'] if os.name=='nt' else [])
+        status=self.get('/api/update/status')
+        self.assertFalse(status['automatic_install'])
+        self.assertTrue(status['recovery_available'])
+        self.assertEqual(status['repository'],'Aspksa/Sakuya')
+        self.assertEqual(self.post('/api/open',{'target':'../../unsafe'})[0],400)
+        self.assertEqual(self.post('/api/open',{'target':123})[0],400)
+
     def test_logs_are_bounded(self):
         (self.data/'logs/sakuya.log').write_text('\n'.join('line '+str(i) for i in range(100)),encoding='utf-8')
         result=self.get('/api/logs')
