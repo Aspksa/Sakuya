@@ -170,6 +170,10 @@ def create_server(data: Path, identity: str, session: str, token: str,
                 return self.reply(503, {'error': 'Sakuya завершается. Дождитесь следующего запуска.'})
             try:
                 payload = self.read_body()
+                if self.path == '/api/workspace/backup':
+                    if payload != {'confirm': True}:
+                        raise ValueError('Подтвердите резервное копирование')
+                    return self.reply(200, workspace.backup(data))
                 if self.path == '/api/workspace/create':
                     if set(payload)-{'title'}:
                         raise ValueError('Неизвестные поля')
