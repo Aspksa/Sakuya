@@ -102,7 +102,7 @@ class StartupDisplay:
         try:
             start = float(os.environ["SAKUYA_LAUNCH_STARTED_AT"])
             from_bootstrap = time.time() - start
-            if math.isfinite(from_bootstrap) and 0 <= from_bootstrap <= 86400:
+            if math.isfinite(from_bootstrap) and 0 <= from_bootstrap <= 120:
                 total = from_bootstrap
         except (KeyError, ValueError):
             pass
