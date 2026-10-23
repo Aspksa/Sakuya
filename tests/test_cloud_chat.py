@@ -1,5 +1,7 @@
 """Offline Cloud.ru chat tests."""
 import json
+import io
+import urllib.error
 from pathlib import Path
 import sys
 import tempfile
@@ -47,6 +49,18 @@ class ChatTests(unittest.TestCase):
     def test_user_message_longer_than_old_limit(self):
         message = {"role":"user","content":"a"*100000}
         self.assertEqual(cloud_chat.compact_messages([message]), [message])
+
+    def test_http400_reason_is_safely_extracted(self):
+        response=urllib.error.HTTPError("https://example.invalid",400,"Bad Request",{},
+            io.BytesIO(json.dumps({"error":{"message":"Model not supported for streaming"}}).encode()))
+        self.assertIn("Model not supported", cloud_chat.provider_error(response))
+
+    def test_secret_is_redacted_from_provider_error(self):
+        response=urllib.error.HTTPError("https://example.invalid",400,"Bad Request",{},
+            io.BytesIO(b'{"error":{"message":"Authorization: secret-abcdef Bearer secret-bearer"}}'))
+        message=cloud_chat.provider_error(response)
+        self.assertNotIn("secret-abcdef", message)
+        self.assertNotIn("secret-bearer", message)
 
     def test_model_required(self):
         with patch.object(cloud_chat,"get_config",return_value={"model":""}):
