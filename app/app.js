@@ -441,7 +441,7 @@ $('chat-form').addEventListener('submit',async event=>{
     const response=await fetch('/api/chat/stream',{
       method:'POST',cache:'no-store',signal:chatAbort.signal,
       headers:{'Content-Type':'application/json','X-Sakuya-CSRF':csrf},
-      body:JSON.stringify({messages:history,chat_id:currentChatId,model:activeChatModel||undefined})
+      body:JSON.stringify({messages:history,chat_id:currentChatId,model:activeChatModel||undefined,use_memory:$('chat-use-memory').checked})
     });
     if(!response.ok){
       const failure=await response.json();throw new Error(failure.error||'Ошибка запроса');
@@ -491,10 +491,22 @@ $('memory-form').onsubmit=async event=>{
 async function loadMonitor(){
   try{
     const result=await api('/api/workspace/status');
-    $('monitor-content').textContent='Диалогов: '+result.chats+' · Сообщений: '+result.messages+' · Записей памяти: '+result.memories+' · База: '+Math.ceil(result.database_bytes/1024)+' КиБ';
+    const sys=result.system||{};
+    const ram=sys.process_ram_bytes?' · RAM процесса: '+(sys.process_ram_bytes/1048576).toFixed(1)+' МиБ':'';
+    const total=sys.ram_total_bytes?' · ОЗУ: '+(sys.ram_total_bytes/1073741824).toFixed(1)+' ГиБ':'';
+    $('monitor-content').textContent='Диалогов: '+result.chats+' · Сообщений: '+result.messages+' · Записей памяти: '+result.memories+' · База: '+Math.ceil(result.database_bytes/1024)+' КиБ'+ram+total+' · CPU ядер: '+(sys.cpu_count||'?');
   }catch(error){$('monitor-content').textContent=error.message;}
 }
 $('monitor-refresh').onclick=loadMonitor;
+$('monitor-backup').onclick=async()=>{
+  if(!confirm('Создать локальную резервную копию истории и памяти?'))return;
+  try{
+    const result=await api('/api/workspace/backup',{confirm:true});
+    $('monitor-backup-result').textContent='Копия '+result.name+' создана в папке данных Sakuya ('+Math.ceil(result.size/1024)+' КиБ).';
+    toast('Резервная копия создана.');
+  }catch(error){toast(error.message,true);}
+};
+$('sakuya-avatar').onclick=()=>{location.hash='#chat';$('chat-input').focus();};
 document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
 route(); refresh();
 setInterval(() => { if (!document.hidden) refresh(); },5000);
