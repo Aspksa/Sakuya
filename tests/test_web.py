@@ -214,7 +214,10 @@ class WebTests(unittest.TestCase):
             with HTTP.open(request,timeout=5) as response:
                 body=response.read().decode('utf-8')
             self.assertIn('Привет ',body)
-            self.assertIn('"done": true',body)
+            events=[json.loads(line) for line in body.splitlines() if line.strip()]
+            self.assertEqual([item.get('delta') for item in events[:-1]], ['Привет ','Sakuya'])
+            self.assertIs(events[-1].get('done'),True)
+            self.assertEqual(len(events),3)
         saved=self.get('/api/workspace/chat?id='+chat_id)['messages']
         self.assertEqual(saved[0]['content'],'Здравствуйте')
         self.assertEqual(saved[1]['content'],'Привет Sakuya')
