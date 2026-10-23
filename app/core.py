@@ -16,8 +16,14 @@ from common import APP_ID, APP_NAME, APP_VERSION, atomic_json
 import startup
 import updater
 import cloudru
-import cloud_chat
 import importlib.util
+_cloud_chat_path = Path(__file__).with_name('cloud_chat.py')
+if _cloud_chat_path.is_file():
+    _chat_spec = importlib.util.spec_from_file_location('sakuya_release_cloud_chat', _cloud_chat_path)
+    cloud_chat = importlib.util.module_from_spec(_chat_spec)
+    _chat_spec.loader.exec_module(cloud_chat)
+else:
+    import cloud_chat  # Compatibility with releases installed using the old stager
 _workspace_spec = importlib.util.spec_from_file_location(
     "sakuya_workspace", Path(__file__).with_name("workspace.py"))
 workspace = importlib.util.module_from_spec(_workspace_spec)
