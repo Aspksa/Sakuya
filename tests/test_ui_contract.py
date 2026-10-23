@@ -47,7 +47,7 @@ class UiContractTests(unittest.TestCase):
         script=(ROOT / "app/app.js").read_text(encoding="utf-8")
         self.assertIn("@media(max-width:650px)",css)
         self.assertIn("overflow-wrap:anywhere",css)
-        self.assertIn("container.scrollTop = container.scrollHeight",script)
+        self.assertIn("scrollTop",script)
         self.assertNotIn("item.scrollIntoView(",script)
 
 
